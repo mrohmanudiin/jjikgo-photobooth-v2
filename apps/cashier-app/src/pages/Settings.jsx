@@ -194,7 +194,7 @@ export default function Settings() {
                                 )}
 
                                 {activeTab === 'themes' && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
                                         <div className="form-group">
                                             <label style={{ fontSize: 12, fontWeight: 600, color: '#636366', marginBottom: 6, display: 'block' }}>Booth Number</label>
                                             <input
@@ -214,7 +214,18 @@ export default function Settings() {
                                                 style={{ padding: '12px 14px', borderRadius: 10 }}
                                             />
                                         </div>
-                                        <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                                        <div className="form-group">
+                                            <label style={{ fontSize: 12, fontWeight: 600, color: '#636366', marginBottom: 6, display: 'block' }}>Max Capacity</label>
+                                            <input
+                                                type="number"
+                                                className="form-control"
+                                                value={formData.max_capacity || 4}
+                                                min="1"
+                                                onChange={e => setFormData({ ...formData, max_capacity: parseInt(e.target.value, 10) || 4 })}
+                                                style={{ padding: '12px 14px', borderRadius: 10 }}
+                                            />
+                                        </div>
+                                        <div className="form-group" style={{ gridColumn: 'span 3' }}>
                                             <label style={{ fontSize: 12, fontWeight: 600, color: '#636366', marginBottom: 6, display: 'block' }}>
                                                 Theme Color
                                                 {formData.color && (
@@ -277,7 +288,23 @@ export default function Settings() {
                                     </div>
                                 )}
 
-                                <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+                                    <input
+                                        type="checkbox"
+                                        id="active-checkbox"
+                                        checked={formData.active !== false}
+                                        onChange={e => setFormData({ ...formData, active: e.target.checked })}
+                                        style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#111' }}
+                                    />
+                                    <label htmlFor="active-checkbox" style={{ fontSize: 14, fontWeight: 600, color: '#111', cursor: 'pointer', userSelect: 'none' }}>
+                                        Active (Visible in App)
+                                        <div style={{ fontSize: 11, color: '#8E8E93', fontWeight: 500, marginTop: 2 }}>
+                                            Uncheck this if you cannot delete it due to existing transaction history.
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                                     <button type="submit" className="btn btn-primary" style={{ flex: 1, padding: '12px', borderRadius: 10, fontWeight: 700 }}>
                                         {isEditing === 'new' ? `Add ${currentTab.label.slice(0, -1)}` : 'Save Changes'}
                                     </button>
@@ -359,6 +386,15 @@ export default function Settings() {
                                                     fontSize: 11, fontWeight: 600, color: '#8E8E93'
                                                 }}>
                                                     Prefix: {item.prefix}
+                                                </span>
+                                            )}
+                                            {item.max_capacity && (
+                                                <span style={{
+                                                    marginLeft: 8, background: '#F2F2F7',
+                                                    padding: '2px 8px', borderRadius: 4,
+                                                    fontSize: 11, fontWeight: 600, color: '#8E8E93'
+                                                }}>
+                                                    Capacity: {item.max_capacity}
                                                 </span>
                                             )}
                                             {item.type && ` (${item.type} ${item.discount})`}

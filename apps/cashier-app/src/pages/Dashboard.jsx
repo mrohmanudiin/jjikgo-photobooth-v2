@@ -147,7 +147,7 @@ export default function Dashboard() {
                     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(themes.length, 5)}, 1fr)`, gap: 12 }}>
                         {themes.map((theme, idx) => {
                             const count = transactions.filter(tx =>
-                                tx.theme_id === theme.id && tx.order_status !== 'DONE'
+                                tx.theme_id === theme.id && tx.order_status !== 'done'
                             ).length;
                             const themeColor = theme.color || FALLBACK_COLORS[idx % FALLBACK_COLORS.length];
 

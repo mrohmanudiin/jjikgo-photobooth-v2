@@ -1,35 +1,44 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import './index.css';
+import BoothSelection from './pages/BoothSelection';
+import StaffDashboard from './pages/StaffDashboard';
+import { fetchThemes, socket } from './utils/api';
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [themes, setThemes] = useState([]);
+  const [selectedTheme, setSelectedTheme] = useState(null);
+  const [loadingThemes, setLoadingThemes] = useState(true);
+
+  useEffect(() => {
+    fetchThemes()
+      .then(setThemes)
+      .catch(console.error)
+      .finally(() => setLoadingThemes(false));
+  }, []);
+
+  if (loadingThemes) {
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex',
+        alignItems: 'center', justifyContent: 'center',
+        background: 'var(--bg)', flexDirection: 'column', gap: 20
+      }}>
+        <div className="spinner" style={{ width: 36, height: 36, borderWidth: 3 }} />
+        <div style={{ color: 'var(--text-muted)', fontSize: 14, fontWeight: 600 }}>
+          Loading system…
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedTheme) {
+    return <BoothSelection themes={themes} onSelect={setSelectedTheme} />;
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <StaffDashboard
+      theme={selectedTheme}
+      onChangeBooth={() => setSelectedTheme(null)}
+    />
+  );
 }
-
-export default App

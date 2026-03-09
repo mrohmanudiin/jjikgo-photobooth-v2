@@ -18,13 +18,13 @@ app.use(express.json());
 
 app.set('io', io);
 
-const setupSockets = require('./src/socket');
+const setupSockets = require('./socket');
 setupSockets(io);
 
-const themeRoutes = require('./src/routes/themes');
-const transactionRoutes = require('./src/routes/transactions');
-const queueRoutes = require('./src/routes/queue');
-const studioRoutes = require('./src/routes/studio');
+const themeRoutes = require('./routes/themes');
+const transactionRoutes = require('./routes/transactions');
+const queueRoutes = require('./routes/queue');
+const studioRoutes = require('./routes/studio');
 
 app.use('/api/themes', themeRoutes);
 app.use('/api/transactions', transactionRoutes);

@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatCurrency } from '../../utils/format';
 import { Printer, Plus } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 
 export default function PaymentSuccessModal({ transaction, onNewTransaction, onClose }) {
     if (!transaction) return null;
@@ -32,9 +33,12 @@ export default function PaymentSuccessModal({ transaction, onNewTransaction, onC
                 <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4, letterSpacing: '-0.01em' }}>
                     Payment Successful
                 </h2>
-                <p style={{ fontSize: 14, color: '#8E8E93', marginBottom: 28 }}>
+                <p style={{ fontSize: 14, color: '#8E8E93', marginBottom: 12 }}>
                     {paymentIcons[transaction.payment_method] || '💳'} Paid via {transaction.payment_method}
                 </p>
+                <div style={{ background: '#F2F2F7', padding: '10px 16px', borderRadius: 10, display: 'inline-block', marginBottom: 28, fontSize: 14, fontWeight: 700, color: '#111' }}>
+                    👤 {transaction.customer_name || 'Walk-in'} • {transaction.people_count || 1} people
+                </div>
 
                 {/* Queue Number(s) — BIG */}
                 <div style={{
@@ -47,13 +51,23 @@ export default function PaymentSuccessModal({ transaction, onNewTransaction, onC
                         Queue Number{transaction.all_sessions?.length > 1 ? 's' : ''}
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
-                        {(transaction.all_sessions || [transaction]).map((s, si) => (
-                            <div key={si} style={{ fontSize: transaction.all_sessions?.length > 2 ? 36 : 56, fontWeight: 900, color: 'white', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                                {s.queue_number}
-                            </div>
-                        ))}
+                        {(transaction.all_sessions || [transaction]).map((s, si) => {
+                            const trackingUrl = `${window.location.origin}/queue/${s.queue_number}`;
+                            return (
+                                <div key={si} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, background: '#1c1c1e', padding: '20px', borderRadius: 16 }}>
+                                    <div style={{ fontSize: transaction.all_sessions?.length > 2 ? 36 : 56, fontWeight: 900, color: 'white', letterSpacing: '-0.02em', lineHeight: 1 }}>
+                                        {s.queue_number}
+                                    </div>
+                                    <div style={{ background: '#FFF', padding: 8, borderRadius: 8 }}>
+                                        <QRCodeCanvas value={trackingUrl} size={100} />
+                                    </div>
+                                    <div style={{ fontSize: 11, color: '#A1A1A6', fontWeight: 600, textAlign: 'center', maxWidth: 120, lineHeight: 1.3 }}>
+                                        Scan to track {s.theme} queue
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
-                    <div style={{ fontSize: 12, color: '#636366', marginTop: 12 }}>Customer may proceed to the booths when called</div>
                 </div>
 
                 {/* Details */}
@@ -82,6 +96,12 @@ export default function PaymentSuccessModal({ transaction, onNewTransaction, onC
                         <span style={{ fontSize: 13, color: '#8E8E93' }}>Total Paid</span>
                         <span style={{ fontSize: 18, fontWeight: 800, color: '#111111' }}>{formatCurrency(transaction.total)}</span>
                     </div>
+                    {transaction.note && (
+                        <div style={{ background: '#FFFDF0', padding: '10px 14px', borderRadius: 8, marginTop: 12, border: '1px solid #FFEBB5' }}>
+                            <div style={{ fontSize: 11, color: '#D99F00', textTransform: 'uppercase', marginBottom: 2, fontWeight: 800 }}>Note</div>
+                            <div style={{ fontSize: 13, color: '#4A3B12', fontWeight: 600 }}>{transaction.note}</div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Actions */}

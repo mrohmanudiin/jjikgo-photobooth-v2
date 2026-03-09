@@ -16,6 +16,7 @@ model Theme {
   booth_number String?
   price        Float
   active       Boolean       @default(true)
+  max_capacity Int           @default(4)
   transactions Transaction[]
   queues       Queue[]
   booths       Booth[]
@@ -58,11 +59,16 @@ model Transaction {
   invoice_number String   @unique
   customer_name  String
   customer_email String?
+  people_count   Int      @default(1)
   theme_id       Int
   package_name   String
+  addons         Json?
+  cafe_snacks    Json?
+  promo          String?
   payment_method String
   total_price    Float
   status         String   @default("waiting") // waiting, shooting, finished
+  note           String?
   created_at     DateTime @default(now())
 
   theme Theme   @relation(fields: [theme_id], references: [id])

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
+import { usePrintAlerts } from '../../App';
 import {
     LayoutDashboard, Plus, ListOrdered, LogOut, Camera, ChevronLeft, ChevronRight, Settings
 } from 'lucide-react';
@@ -17,6 +18,8 @@ export default function Sidebar() {
     const logout = useStore((s) => s.logout);
     const cashier = useStore((s) => s.cashierName);
     const navigate = useNavigate();
+    const { alerts } = usePrintAlerts();
+    const printCount = alerts.length;
 
     const handleLogout = () => { logout(); navigate('/'); };
 
@@ -62,35 +65,83 @@ export default function Sidebar() {
 
             {/* Nav */}
             <nav style={{ flex: 1, padding: '12px 8px' }}>
-                {NAV.map(({ to, icon: Icon, label }) => (
-                    <NavLink
-                        key={to}
-                        to={to}
-                        title={label}
-                        style={({ isActive }) => ({
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 12,
-                            padding: collapsed ? '12px 0' : '12px 14px',
-                            borderRadius: 10,
-                            marginBottom: 4,
-                            textDecoration: 'none',
-                            justifyContent: collapsed ? 'center' : 'flex-start',
-                            background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
-                            color: isActive ? 'white' : '#8E8E93',
-                            transition: 'all 0.18s ease',
-                            fontWeight: 500,
-                            fontSize: 14,
-                        })}
-                    >
-                        {({ isActive }) => (
-                            <>
-                                <Icon size={18} strokeWidth={isActive ? 2.5 : 2} style={{ flexShrink: 0 }} />
-                                {!collapsed && <span style={{ whiteSpace: 'nowrap' }}>{label}</span>}
-                            </>
-                        )}
-                    </NavLink>
-                ))}
+                {NAV.map(({ to, icon: Icon, label }) => {
+                    const isQueueLink = to === '/queue';
+                    const badgeCount = isQueueLink ? printCount : 0;
+                    return (
+                        <NavLink
+                            key={to}
+                            to={to}
+                            title={label}
+                            style={({ isActive }) => ({
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 12,
+                                padding: collapsed ? '12px 0' : '12px 14px',
+                                borderRadius: 10,
+                                marginBottom: 4,
+                                textDecoration: 'none',
+                                justifyContent: collapsed ? 'center' : 'flex-start',
+                                background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
+                                color: isActive ? 'white' : '#8E8E93',
+                                transition: 'all 0.18s ease',
+                                fontWeight: 500,
+                                fontSize: 14,
+                                position: 'relative',
+                            })}
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                                        <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+                                        {badgeCount > 0 && (
+                                            <span style={{
+                                                position: 'absolute',
+                                                top: -6, right: -8,
+                                                minWidth: 16, height: 16,
+                                                background: '#EC4899',
+                                                color: 'white',
+                                                borderRadius: 100,
+                                                fontSize: 10,
+                                                fontWeight: 800,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                padding: '0 4px',
+                                                boxShadow: '0 0 0 2px #111',
+                                                animation: 'pulse-badge 1.5s ease infinite',
+                                            }}>
+                                                {badgeCount}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {!collapsed && (
+                                        <span style={{ whiteSpace: 'nowrap', flex: 1 }}>{label}</span>
+                                    )}
+                                    {!collapsed && badgeCount > 0 && (
+                                        <span style={{
+                                            background: '#EC4899',
+                                            color: 'white',
+                                            borderRadius: 100,
+                                            fontSize: 11,
+                                            fontWeight: 800,
+                                            padding: '2px 8px',
+                                            marginLeft: 'auto',
+                                        }}>
+                                            {badgeCount} print
+                                        </span>
+                                    )}
+                                </>
+                            )}
+                        </NavLink>
+                    );
+                })}
+                <style>{`
+                    @keyframes pulse-badge {
+                        0%, 100% { transform: scale(1); }
+                        50%       { transform: scale(1.2); }
+                    }
+                `}</style>
             </nav>
 
             {/* Bottom */}

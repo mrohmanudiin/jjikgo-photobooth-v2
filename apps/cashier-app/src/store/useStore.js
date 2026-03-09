@@ -5,26 +5,36 @@ import { persist } from 'zustand/middleware';
 
 // ─── QUEUE STATUS ────────────────────────────────────────────────────────────
 export const ORDER_STATUSES = [
-    'WAITING_SHOOT',
-    'SHOOTING',
-    'EDITING',
-    'PRINTING',
-    'DONE',
+    'waiting',
+    'called',
+    'in_session',
+    'print_requested',
+    'printing',
+    'done',
 ];
+
+// Backend statuses that map to cashier statuses
+export const BACKEND_STATUS_MAP = {
+    waiting: 'WAITING_SHOOT',
+    called: 'SHOOTING',
+    in_session: 'SHOOTING',
+    print_requested: 'PRINTING',
+    done: 'DONE',
+};
+
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 const padNum = (n, len = 4) => String(n).padStart(len, '0');
 const today = () => new Date().toISOString().split('T')[0];
 
-const calcTotal = (pkg, addons, cafeSnacks, promo, manualDiscount, selectedThemes) => {
-    if (!pkg) return { base: 0, discount: 0, total: 0 };
+const calcTotal = (pkg, addons, cafeSnacks, promo, manualDiscount, selectedThemes, peopleCount = 1) => {
+    const pkgPrice = pkg?.price || 0;
     const baseAddons = (addons || []).reduce((s, a) => s + a.price, 0);
     const baseCafe = (cafeSnacks || []).reduce((s, c) => s + (c.price * c.quantity), 0);
-    const themeCount = (selectedThemes && selectedThemes.length > 0)
-        ? selectedThemes.reduce((s, t) => s + t.quantity, 0)
-        : 0;
-    const baseThemes = pkg.price * themeCount;
-    const base = baseThemes + baseAddons + baseCafe;
+    const baseThemes = (selectedThemes || [])
+        .reduce((s, t) => s + ((t.price || 0) * peopleCount * t.quantity), 0);
+
+    const base = pkgPrice + baseThemes + baseAddons + baseCafe;
     let discount = 0;
     if (promo) {
         if (promo.type === 'percent') discount = Math.round(base * promo.discount / 100);
@@ -73,6 +83,20 @@ export const useStore = create(
                 }
             },
 
+            refreshTransactions: async () => {
+                try {
+                    const { fetchTransactions } = await import('../utils/api');
+                    const txs = await fetchTransactions();
+                    set({ transactions: txs });
+
+                    // Also derive invoice counter and theme counters from backend if needed
+                    // But maybe simply setting transactions is enough.
+                } catch (err) {
+                    console.error("Transaction refresh failed", err);
+                }
+            },
+
+
             // Auth
             isLoggedIn: false,
             cashierName: '',
@@ -95,6 +119,7 @@ export const useStore = create(
 
             builder: {
                 customerName: '',
+                peopleCount: 1,
                 package: null,
                 themes: [], // Array of { ...theme, quantity }
                 addons: [],
@@ -102,6 +127,7 @@ export const useStore = create(
                 promo: null,
                 manualDiscount: 0,
                 paymentMethod: null,
+                note: '',
             },
 
             setBuilderField: (field, value) =>
@@ -168,6 +194,7 @@ export const useStore = create(
                 set({
                     builder: {
                         customerName: '',
+                        peopleCount: 1,
                         package: null,
                         themes: [],
                         addons: [],
@@ -175,12 +202,13 @@ export const useStore = create(
                         promo: null,
                         manualDiscount: 0,
                         paymentMethod: null,
+                        note: '',
                     },
                 }),
 
             getBuilderCalc: () => {
                 const { builder } = get();
-                return calcTotal(builder.package, builder.addons, builder.cafeSnacks, builder.promo, builder.manualDiscount, builder.themes);
+                return calcTotal(builder.package, builder.addons, builder.cafeSnacks, builder.promo, builder.manualDiscount, builder.themes, builder.peopleCount);
             },
 
             processPayment: () => {
@@ -203,6 +231,7 @@ export const useStore = create(
                             order_id: `JJ-${padNum(currentInvoice)}`,
                             queue_number: `${prefix}${padNum(queueNum, 2)}`,
                             customer_name: s.builder.customerName || `Customer ${currentInvoice}`,
+                            people_count: s.builder.peopleCount || 1,
                             package: s.builder.package?.label || '',
                             package_id: s.builder.package?.id || '',
                             theme: theme.label,
@@ -213,9 +242,10 @@ export const useStore = create(
                             base_price: base,
                             discount: discount,
                             total: total,
+                            note: s.builder.note,
                             payment_method: s.builder.paymentMethod,
                             payment_status: 'PAID',
-                            order_status: 'WAITING_SHOOT',
+                            order_status: 'waiting', // Changed from WAITING_SHOOT to sync with staff app
                             created_at: new Date().toISOString(),
                         };
                         newTransactions.push(tx);
@@ -231,6 +261,7 @@ export const useStore = create(
                         order_id: `JJ-${padNum(currentInvoice)}`,
                         queue_number: 'CAFE',
                         customer_name: s.builder.customerName || `Customer ${currentInvoice}`,
+                        people_count: s.builder.peopleCount || 1,
                         package: 'Cafe Only',
                         package_id: 'cafe',
                         theme: '—',
@@ -241,34 +272,35 @@ export const useStore = create(
                         base_price: base,
                         discount: discount,
                         total: total,
+                        note: s.builder.note,
                         payment_method: s.builder.paymentMethod,
                         payment_status: 'PAID',
-                        order_status: 'DONE',
+                        order_status: 'done', // Changed from DONE to done to sync with staff app
                         created_at: new Date().toISOString(),
                     };
                     newTransactions.push(tx);
                 }
 
+                // Do not update local state yet, let the backend response update it via refreshTransactions
                 set((prev) => ({
-                    transactions: [...newTransactions, ...prev.transactions],
                     invoiceCounter: prev.invoiceCounter + 1,
                     themeCounters: updatedThemeCounters
                 }));
 
-                // Return a combined object for the success modal
-                return {
-                    ...newTransactions[0],
-                    all_sessions: newTransactions
-                };
+                // Return the generated sessions array to hit the API
+                return newTransactions;
             },
 
             // Update order status (for Production Queue panel)
-            updateOrderStatus: (id, status) =>
-                set((s) => ({
-                    transactions: s.transactions.map((t) =>
-                        (t.id === id || t.session_id === id) ? { ...t, order_status: status } : t
-                    ),
-                })),
+            updateOrderStatus: async (id, status) => {
+                try {
+                    const { updateOrderStatusApi } = await import('../utils/api');
+                    await updateOrderStatusApi(id, status);
+                    get().refreshTransactions();
+                } catch (e) {
+                    console.error("Failed to update status", e);
+                }
+            },
 
             // Derived getters
             getTodayTransactions: () => {
@@ -285,7 +317,10 @@ export const useStore = create(
                 }, 0);
             },
             getActiveQueueCount: () =>
-                get().transactions.filter((t) => t.order_status === 'WAITING_SHOOT').length,
+                get().transactions.filter((t) =>
+                    t.order_status === 'waiting' ||
+                    t.order_status === 'called'
+                ).length,
             getMostUsedPackage: () => {
                 const txs = get().getTodayTransactions();
                 if (!txs.length) return '—';
@@ -295,11 +330,29 @@ export const useStore = create(
             },
             getThemeQueueWaitTime: (themeId) => {
                 const count = get().transactions.filter(t =>
-                    t.theme_id === themeId && t.order_status !== 'DONE'
+                    t.theme_id === themeId && t.order_status !== 'DONE' && t.order_status !== 'done'
                 ).length;
                 if (count === 0) return 0;
                 return { min: count * 7, max: count * 10 };
-            }
+            },
+
+            // Get all print_requested queues for cashier alert panel
+            getPrintRequests: () =>
+                get().transactions.filter((t) =>
+                    t.order_status === 'print_requested'
+                ),
+
+            // Confirm print — advance to PRINTING via backend
+            confirmPrint: async (id) => {
+                try {
+                    const { updateOrderStatusApi } = await import('../utils/api');
+                    await updateOrderStatusApi(id, 'printing');
+                    get().refreshTransactions();
+                } catch (e) {
+                    console.error('Failed to confirm print', e);
+                }
+            },
+
         }),
         {
             name: 'jjikgo-store',

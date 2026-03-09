@@ -39,8 +39,18 @@ export const fetchPromos = async () => {
 };
 
 // Transaction helpers
+export const fetchTransactions = async () => {
+    const response = await api.get('/transactions');
+    return response.data;
+};
+
 export const createTransaction = async (data) => {
-    const response = await api.post('/transactions', data);
+    const response = await api.post('/transactions', { sessions: data });
+    return response.data;
+};
+
+export const updateOrderStatusApi = async (id, status) => {
+    const response = await api.put(`/transactions/${id}/status`, { status });
     return response.data;
 };
 
@@ -62,5 +72,10 @@ export const startSession = async (queueId, boothId) => {
 
 export const finishSession = async (queueId, boothId) => {
     const response = await api.post('/queue/finish', { queue_id: queueId, booth_id: boothId });
+    return response.data;
+};
+
+export const trackQueueApi = async (queueNumber) => {
+    const response = await api.get(`/queue/track/${queueNumber}`);
     return response.data;
 };

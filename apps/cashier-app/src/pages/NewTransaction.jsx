@@ -5,7 +5,7 @@ import { formatCurrency } from '../utils/format';
 import PaymentSuccessModal from '../components/transaction/PaymentSuccessModal';
 import { createTransaction as apiCreateTransaction } from '../utils/api';
 import {
-    User, Tag, ChevronDown, CheckCircle2, AlertCircle, Coffee, Plus, Minus, Clock
+    User, Tag, ChevronDown, CheckCircle2, AlertCircle, Coffee, Plus, Minus, Clock, Pencil
 } from 'lucide-react';
 
 // ─── Section Header ───────────────────────────────────────────────────────────
@@ -68,36 +68,35 @@ export default function NewTransaction() {
 
     const [completedTx, setCompletedTx] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isNoteVisible, setIsNoteVisible] = useState(false);
 
     const { base, discount, total } = getBuilderCalc();
-    const canProcess = !!builder.package && builder.themes.length > 0 && !!builder.paymentMethod && !isProcessing;
+    const overCapacityThemes = builder.themes.filter(t => (builder.peopleCount || 1) > (t.max_capacity || 4));
+    const isOverCapacity = overCapacityThemes.length > 0;
+
+    const hasItems = builder.themes.length > 0 || !!builder.package || builder.addons.length > 0 || builder.cafeSnacks.length > 0;
+    const hasName = builder.customerName && builder.customerName.trim() !== '';
+    const canProcess = hasItems && hasName && !!builder.paymentMethod && !isProcessing && !isOverCapacity;
 
     const handleProcess = async () => {
         setIsProcessing(true);
         try {
-            // 1. Process via local zustand for immediate UI update/offline record
-            const localTx = processPayment();
+            // 1. Generate local sessions payload
+            const rawSessions = processPayment();
 
-            // 2. Real Backend Call (Supabase)
-            for (const theme of builder.themes) {
-                for (let i = 0; i < theme.quantity; i++) {
-                    await apiCreateTransaction({
-                        customer_name: builder.customerName || 'Anonymous',
-                        customer_email: '',
-                        theme_id: theme.id,
-                        package_name: builder.package.label,
-                        payment_method: builder.paymentMethod,
-                        total_price: total / (builder.themes.reduce((s, t) => s + t.quantity, 0))
-                    });
-                }
+            // 2. Send the entire cart payload to backend
+            const res = await apiCreateTransaction(rawSessions);
+
+            if (res.success) {
+                setCompletedTx({ ...res.all_sessions[0], all_sessions: res.all_sessions });
+                useStore.getState().refreshTransactions();
+            } else {
+                alert("Failed to process transaction");
             }
 
-            setCompletedTx(localTx);
         } catch (err) {
             console.error("Transaction sync failed", err);
-            alert("Backend sync failed. Transaction saved locally.");
-            // Still show success based on local state
-            setCompletedTx(processPayment());
+            alert("Payment failed: " + err.message);
         } finally {
             setIsProcessing(false);
         }
@@ -119,31 +118,55 @@ export default function NewTransaction() {
         ══════════════════════════════════════════════════════════════════════ */}
                 <div style={{ flex: '1 1 60%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-                    {/* Customer Name (optional) */}
+                    {/* Customer Info */}
                     <div className="card" style={{ padding: 24 }}>
-                        <SectionHeader step="0" title="Customer Name" subtitle="Optional — helps identify in queue" />
-                        <div style={{ position: 'relative' }}>
-                            <User size={16} color="#8E8E93" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
-                            <input
-                                id="customer-name"
-                                className="input"
-                                style={{ paddingLeft: 40 }}
-                                placeholder="Enter customer name..."
-                                value={builder.customerName}
-                                onChange={(e) => setBuilderField('customerName', e.target.value)}
-                            />
+                        <SectionHeader step="0" title="Customer Info" subtitle="Identify the group and headcount" />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: 16 }}>
+                            <div style={{ position: 'relative' }}>
+                                <User size={16} color="#8E8E93" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
+                                <input
+                                    id="customer-name"
+                                    className="input"
+                                    style={{ paddingLeft: 40, height: 50, fontSize: 16 }}
+                                    placeholder="Customer Name"
+                                    value={builder.customerName}
+                                    onChange={(e) => setBuilderField('customerName', e.target.value)}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F2F2F7', borderRadius: 12, padding: '4px' }}>
+                                <button
+                                    onClick={() => setBuilderField('peopleCount', Math.max(1, (builder.peopleCount || 1) - 1))}
+                                    style={{ background: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', color: '#111', display: 'flex', width: '100%', height: '100%', minHeight: 46, alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                    <Minus size={18} />
+                                </button>
+                                <span style={{ fontSize: 16, fontWeight: 800, color: '#111', minWidth: 20, textAlign: 'center' }}>
+                                    {builder.peopleCount || 1}
+                                </span>
+                                <button
+                                    onClick={() => setBuilderField('peopleCount', (builder.peopleCount || 1) + 1)}
+                                    style={{ background: 'white', border: 'none', borderRadius: 10, cursor: 'pointer', color: '#111', display: 'flex', width: '100%', height: '100%', minHeight: 46, alignItems: 'center', justifyContent: 'center' }}
+                                >
+                                    <Plus size={18} />
+                                </button>
+                            </div>
                         </div>
+                        {!hasName && (
+                            <div style={{ fontSize: 12, color: '#FF3B30', marginTop: 8, fontWeight: 500 }}>
+                                * Customer name is required.
+                            </div>
+                        )}
                     </div>
 
                     {/* ── SECTION 1: Theme ───────────────────────────────────────────── */}
                     <div className="card" style={{ padding: 24 }}>
                         <SectionHeader step="1" title="Theme" subtitle="Choose your backdrop theme" />
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-                            {themesList.length === 0 ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 }}>
+                            {themesList.filter(t => t.active !== false).length === 0 ? (
                                 <div style={{ gridColumn: 'span 2', textAlign: 'center', padding: '40px 0', color: '#8E8E93' }}>
                                     No themes available...
                                 </div>
-                            ) : themesList.map((theme, idx) => {
+                            ) : themesList.filter(t => t.active !== false).map((theme, idx) => {
                                 // Map backend ID to existing store prefixes/colors if possible
                                 const selectedItem = (builder.themes || []).find(t => t.id === theme.id);
                                 const qty = selectedItem ? selectedItem.quantity : 0;
@@ -186,6 +209,19 @@ export default function NewTransaction() {
                                                 lineHeight: 1.2
                                             }}>
                                                 {theme.name}
+                                            </div>
+                                            <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
+                                                {formatCurrency(theme.price || 0)} / ppl
+                                            </div>
+                                            <div style={{
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                                color: 'rgba(255,255,255,0.9)',
+                                                background: 'rgba(0,0,0,0.3)',
+                                                padding: '2px 8px',
+                                                borderRadius: 10
+                                            }}>
+                                                Max: {theme.max_capacity || 4} ppl
                                             </div>
 
                                             {selected ? (
@@ -247,7 +283,7 @@ export default function NewTransaction() {
                     <div className="card" style={{ padding: 24 }}>
                         <SectionHeader step="2" title="Package" subtitle="Select the shoot package" />
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                            {packagesList.map((pkg) => {
+                            {packagesList.filter(p => p.active !== false).map((pkg) => {
                                 const selected = builder.package?.id === pkg.id;
                                 return (
                                     <div
@@ -288,7 +324,7 @@ export default function NewTransaction() {
                     <div className="card" style={{ padding: 24 }}>
                         <SectionHeader step="3" title="Add-ons" subtitle="Toggle optional extras" />
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                            {addonsList.map((addon) => {
+                            {addonsList.filter(a => a.active !== false).map((addon) => {
                                 const active = builder.addons.some((a) => a.id === addon.id);
                                 return (
                                     <button
@@ -315,7 +351,7 @@ export default function NewTransaction() {
                     <div className="card" style={{ padding: 24 }}>
                         <SectionHeader step="4" title="Cafe & Snacks" subtitle="Refreshments while waiting" />
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-                            {cafeSnacksList.map((item) => {
+                            {cafeSnacksList.filter(c => c.active !== false).map((item) => {
                                 const selectedItem = builder.cafeSnacks.find(c => c.id === item.id);
                                 const qty = selectedItem ? selectedItem.quantity : 0;
 
@@ -384,7 +420,7 @@ export default function NewTransaction() {
                                     setBuilderField('promo', p);
                                 }}
                             >
-                                {promosList.map((p) => (
+                                {promosList.filter(p => p.active !== false).map((p) => (
                                     <option key={p.id} value={p.id}>{p.label}</option>
                                 ))}
                             </select>
@@ -487,12 +523,12 @@ export default function NewTransaction() {
 
                             {/* Theme */}
                             <div style={{ marginBottom: 12 }}>
-                                <div style={{ fontSize: 11, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Themes</div>
+                                <div style={{ fontSize: 11, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Themes <span style={{ textTransform: 'none' }}>({builder.peopleCount || 1} ppl)</span></div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                     {(builder.themes || []).map(t => (
-                                        <div key={t.id} style={{ fontSize: 13, fontWeight: 600, color: '#111', display: 'flex', justifyContent: 'space-between' }}>
-                                            <span>{t.label}</span>
-                                            <span style={{ color: '#8E8E93' }}>x{t.quantity}</span>
+                                        <div key={t.id} style={{ fontSize: 13, fontWeight: 600, color: '#111', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span>{t.name || t.label} <span style={{ color: '#8E8E93' }}>(x{t.quantity})</span></span>
+                                            <span>{formatCurrency((t.price || 0) * (builder.peopleCount || 1) * t.quantity)}</span>
                                         </div>
                                     ))}
                                     {(builder.themes || []).length === 0 && (
@@ -567,9 +603,43 @@ export default function NewTransaction() {
                             <hr className="divider" style={{ marginBottom: 14 }} />
 
                             {/* Total */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                                 <span style={{ fontWeight: 800, fontSize: 16 }}>TOTAL</span>
                                 <span style={{ fontWeight: 900, fontSize: 32, letterSpacing: '-0.02em', color: '#111' }}>{formatCurrency(total)}</span>
+                            </div>
+
+                            {/* Order Note Toggle */}
+                            <div style={{ marginBottom: 24 }}>
+                                {!isNoteVisible && !builder.note ? (
+                                    <button
+                                        onClick={() => setIsNoteVisible(true)}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#8E8E93', cursor: 'pointer', fontSize: 13, fontWeight: 700, padding: 0, transition: 'color 0.2s' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.color = '#111'}
+                                        onMouseLeave={(e) => e.currentTarget.style.color = '#8E8E93'}
+                                    >
+                                        <Pencil size={14} />
+                                        Add note
+                                    </button>
+                                ) : (
+                                    <div className="animate-fadeIn" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                        <Pencil size={15} color="#8E8E93" />
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            className="input"
+                                            placeholder="Write note here..."
+                                            style={{ height: 38, fontSize: 13, background: '#F2F2F7', border: 'none', paddingLeft: 12, flex: 1, borderRadius: 8 }}
+                                            value={builder.note || ''}
+                                            onChange={(e) => setBuilderField('note', e.target.value)}
+                                        />
+                                        <button
+                                            onClick={() => { setIsNoteVisible(false); setBuilderField('note', ''); }}
+                                            style={{ background: 'none', border: 'none', fontSize: 12, fontWeight: 700, color: '#FF3B30', cursor: 'pointer', padding: '4px 8px' }}
+                                        >
+                                            Clear
+                                        </button>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Payment Methods */}
@@ -597,7 +667,19 @@ export default function NewTransaction() {
                             </div>
 
                             {/* Validation warnings */}
-                            {!builder.package && (
+                            {isOverCapacity && (
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', gap: 8,
+                                    padding: '10px 12px', borderRadius: 8,
+                                    background: '#FFF0F0', color: '#FF3B30',
+                                    fontSize: 12, fontWeight: 600, marginBottom: 12,
+                                }}>
+                                    <AlertCircle size={14} />
+                                    This theme allows a maximum of {overCapacityThemes[0]?.max_capacity || 4} people.
+                                </div>
+                            )}
+
+                            {!hasItems && (
                                 <div style={{
                                     display: 'flex', alignItems: 'center', gap: 8,
                                     padding: '10px 12px', borderRadius: 8,
@@ -605,11 +687,11 @@ export default function NewTransaction() {
                                     fontSize: 12, fontWeight: 500, marginBottom: 12,
                                 }}>
                                     <AlertCircle size={14} />
-                                    Select a package to continue
+                                    Add at least one item (theme, package, café...)
                                 </div>
                             )}
 
-                            {builder.package && !builder.paymentMethod && (
+                            {hasItems && !builder.paymentMethod && (
                                 <div style={{
                                     display: 'flex', alignItems: 'center', gap: 8,
                                     padding: '10px 12px', borderRadius: 8,
@@ -645,16 +727,18 @@ export default function NewTransaction() {
                         </div>
                     </div>
                 </div>
-            </div>
+            </div >
 
             {/* Payment Success Modal */}
-            {completedTx && (
-                <PaymentSuccessModal
-                    transaction={completedTx}
-                    onNewTransaction={handleNewTransaction}
-                    onClose={() => setCompletedTx(null)}
-                />
-            )}
+            {
+                completedTx && (
+                    <PaymentSuccessModal
+                        transaction={completedTx}
+                        onNewTransaction={handleNewTransaction}
+                        onClose={() => setCompletedTx(null)}
+                    />
+                )
+            }
         </>
     );
 

@@ -5,7 +5,7 @@ exports.getQueue = async (req, res) => {
         const queues = await prisma.queue.findMany({
             where: {
                 status: {
-                    in: ['waiting', 'called', 'in_progress']
+                    in: ['waiting', 'called', 'in_session', 'print_requested', 'printing']
                 }
             },
             include: {
@@ -45,7 +45,12 @@ exports.callNextQueue = async (req, res) => {
         const updatedQueue = await prisma.queue.update({
             where: { id: nextQueue.id },
             data: { status: 'called' },
-            include: { transaction: true }
+            include: { transaction: true, theme: true }
+        });
+
+        await prisma.transaction.update({
+            where: { id: updatedQueue.transaction_id },
+            data: { status: 'called' }
         });
 
         const io = req.app.get('io');
@@ -64,12 +69,13 @@ exports.startSession = async (req, res) => {
 
         const updatedQueue = await prisma.queue.update({
             where: { id: parseInt(queue_id) },
-            data: { status: 'in_progress' }
+            data: { status: 'in_session' },
+            include: { theme: true }
         });
 
         await prisma.transaction.update({
             where: { id: updatedQueue.transaction_id },
-            data: { status: 'shooting' }
+            data: { status: 'in_session' }
         });
 
         if (booth_id) {
@@ -95,12 +101,13 @@ exports.finishSession = async (req, res) => {
 
         const updatedQueue = await prisma.queue.update({
             where: { id: parseInt(queue_id) },
-            data: { status: 'finished' }
+            data: { status: 'done' },
+            include: { theme: true }
         });
 
         await prisma.transaction.update({
             where: { id: updatedQueue.transaction_id },
-            data: { status: 'finished' }
+            data: { status: 'done' }
         });
 
         if (booth_id) {
@@ -117,5 +124,82 @@ exports.finishSession = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Failed to finish session' });
+    }
+};
+
+exports.sendToPrint = async (req, res) => {
+    try {
+        const { queue_id } = req.body;
+
+        const updatedQueue = await prisma.queue.update({
+            where: { id: parseInt(queue_id) },
+            data: { status: 'print_requested' },
+            include: { transaction: true, theme: true }
+        });
+
+        await prisma.transaction.update({
+            where: { id: updatedQueue.transaction_id },
+            data: { status: 'print_requested' }
+        });
+
+        const io = req.app.get('io');
+        io.emit('queueUpdated', { theme_id: updatedQueue.theme_id, action: 'print_requested', queue: updatedQueue });
+        io.emit('printRequested', { queue: updatedQueue });
+
+        res.json(updatedQueue);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to send print request' });
+    }
+};
+
+exports.trackQueue = async (req, res) => {
+    try {
+        const { queueNumber } = req.params;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const recentQueues = await prisma.queue.findMany({
+            where: {
+                created_at: { gte: today }
+            },
+            include: {
+                theme: true,
+                transaction: true
+            },
+            orderBy: { created_at: 'desc' }
+        });
+
+        const targetQueue = recentQueues.find(q => {
+            const formatted = `${q.theme?.prefix || 'T'}${String(q.queue_number).padStart(2, '0')}`;
+            return formatted.toUpperCase() === queueNumber.toUpperCase();
+        });
+
+        if (!targetQueue) {
+            return res.status(404).json({ error: 'Queue not found for today.' });
+        }
+
+        const peopleAhead = await prisma.queue.count({
+            where: {
+                theme_id: targetQueue.theme_id,
+                status: 'waiting',
+                created_at: { lt: targetQueue.created_at }
+            }
+        });
+
+        res.json({
+            queueNumber: queueNumber.toUpperCase(),
+            customerName: targetQueue.transaction.customer_name,
+            theme: targetQueue.theme.name,
+            people: targetQueue.transaction.people_count,
+            status: targetQueue.status.toLowerCase() === 'waiting_shoot' ? 'waiting' : targetQueue.status.toLowerCase(),
+            peopleAhead: targetQueue.status.toLowerCase() === 'waiting' || targetQueue.status.toLowerCase() === 'waiting_shoot' ? peopleAhead : 0,
+            booth: `${targetQueue.theme.name} Booth`
+        });
+
+    } catch (error) {
+        console.error("Error tracking queue:", error);
+        res.status(500).json({ error: 'Failed to track queue' });
     }
 };
