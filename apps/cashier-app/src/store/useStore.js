@@ -27,9 +27,9 @@ export const BACKEND_STATUS_MAP = {
 const padNum = (n, len = 4) => String(n).padStart(len, '0');
 const today = () => new Date().toISOString().split('T')[0];
 
-const calcTotal = (pkg, addons, cafeSnacks, promo, manualDiscount, selectedThemes, peopleCount = 1) => {
-    const pkgPrice = pkg?.price || 0;
-    const baseAddons = (addons || []).reduce((s, a) => s + a.price, 0);
+const calcTotal = (packages, addons, cafeSnacks, promo, manualDiscount, selectedThemes, peopleCount = 1) => {
+    const pkgPrice = (packages || []).reduce((s, p) => s + (p.price * p.quantity), 0);
+    const baseAddons = (addons || []).reduce((s, a) => s + (a.price * a.quantity), 0);
     const baseCafe = (cafeSnacks || []).reduce((s, c) => s + (c.price * c.quantity), 0);
     const baseThemes = (selectedThemes || [])
         .reduce((s, t) => s + ((t.price || 0) * peopleCount * t.quantity), 0);
@@ -120,9 +120,9 @@ export const useStore = create(
             builder: {
                 customerName: '',
                 peopleCount: 1,
-                package: null,
+                packages: [], // Array of { ...package, quantity }
                 themes: [], // Array of { ...theme, quantity }
-                addons: [],
+                addons: [], // Array of { ...addon, quantity }
                 cafeSnacks: [],
                 promo: null,
                 manualDiscount: 0,
@@ -177,17 +177,46 @@ export const useStore = create(
                     return { builder: { ...s.builder, cafeSnacks: newSnacks } };
                 }),
 
-            toggleAddon: (addon) =>
+            updatePackageQuantity: (pkg, delta) =>
                 set((s) => {
-                    const has = s.builder.addons.some((a) => a.id === addon.id);
-                    return {
-                        builder: {
-                            ...s.builder,
-                            addons: has
-                                ? s.builder.addons.filter((a) => a.id !== addon.id)
-                                : [...s.builder.addons, addon],
-                        },
-                    };
+                    const existing = (s.builder.packages || []).find((p) => p.id === pkg.id);
+                    let newPkgs;
+                    if (existing) {
+                        const nextQty = existing.quantity + delta;
+                        if (nextQty <= 0) {
+                            newPkgs = s.builder.packages.filter((p) => p.id !== pkg.id);
+                        } else {
+                            newPkgs = s.builder.packages.map((p) =>
+                                p.id === pkg.id ? { ...p, quantity: nextQty } : p
+                            );
+                        }
+                    } else if (delta > 0) {
+                        newPkgs = [...(s.builder.packages || []), { ...pkg, quantity: delta }];
+                    } else {
+                        newPkgs = s.builder.packages || [];
+                    }
+                    return { builder: { ...s.builder, packages: newPkgs } };
+                }),
+
+            updateAddonQuantity: (addon, delta) =>
+                set((s) => {
+                    const existing = (s.builder.addons || []).find((a) => a.id === addon.id);
+                    let newAddons;
+                    if (existing) {
+                        const nextQty = existing.quantity + delta;
+                        if (nextQty <= 0) {
+                            newAddons = s.builder.addons.filter((a) => a.id !== addon.id);
+                        } else {
+                            newAddons = s.builder.addons.map((a) =>
+                                a.id === addon.id ? { ...a, quantity: nextQty } : a
+                            );
+                        }
+                    } else if (delta > 0) {
+                        newAddons = [...(s.builder.addons || []), { ...addon, quantity: delta }];
+                    } else {
+                        newAddons = s.builder.addons || [];
+                    }
+                    return { builder: { ...s.builder, addons: newAddons } };
                 }),
 
             resetBuilder: () =>
@@ -195,7 +224,7 @@ export const useStore = create(
                     builder: {
                         customerName: '',
                         peopleCount: 1,
-                        package: null,
+                        packages: [],
                         themes: [],
                         addons: [],
                         cafeSnacks: [],
@@ -208,7 +237,7 @@ export const useStore = create(
 
             getBuilderCalc: () => {
                 const { builder } = get();
-                return calcTotal(builder.package, builder.addons, builder.cafeSnacks, builder.promo, builder.manualDiscount, builder.themes, builder.peopleCount);
+                return calcTotal(builder.packages, builder.addons, builder.cafeSnacks, builder.promo, builder.manualDiscount, builder.themes, builder.peopleCount);
             },
 
             processPayment: () => {
@@ -232,11 +261,11 @@ export const useStore = create(
                             queue_number: `${prefix}${padNum(queueNum, 2)}`,
                             customer_name: s.builder.customerName || `Customer ${currentInvoice}`,
                             people_count: s.builder.peopleCount || 1,
-                            package: s.builder.package?.label || '',
-                            package_id: s.builder.package?.id || '',
+                            package: s.builder.packages.map(p => `${p.quantity}x ${p.label}`).join(', '),
+                            package_id: s.builder.packages.map(p => p.id).join(','),
                             theme: theme.label,
                             theme_id: themeId,
-                            addons: s.builder.addons.map((a) => a.label),
+                            addons: s.builder.addons.map((a) => `${a.quantity}x ${a.label}`),
                             cafe_snacks: (s.builder.cafeSnacks || []).map((c) => `${c.quantity}x ${c.label}`),
                             promo: s.builder.promo?.label || '',
                             base_price: base,

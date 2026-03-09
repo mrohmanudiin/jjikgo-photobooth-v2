@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { formatCurrency } from '../utils/format';
 import PaymentSuccessModal from '../components/transaction/PaymentSuccessModal';
@@ -47,12 +46,12 @@ const THEME_Gradients = [
 ];
 
 export default function NewTransaction() {
-    const navigate = useNavigate();
 
     const builder = useStore((s) => s.builder);
     const setBuilderField = useStore((s) => s.setBuilderField);
     const updateThemeQuantity = useStore((s) => s.updateThemeQuantity);
-    const toggleAddon = useStore((s) => s.toggleAddon);
+    const updatePackageQuantity = useStore((s) => s.updatePackageQuantity);
+    const updateAddonQuantity = useStore((s) => s.updateAddonQuantity);
     const updateCafeSnackQuantity = useStore((s) => s.updateCafeSnackQuantity);
     const getBuilderCalc = useStore((s) => s.getBuilderCalc);
     const processPayment = useStore((s) => s.processPayment);
@@ -74,7 +73,7 @@ export default function NewTransaction() {
     const overCapacityThemes = builder.themes.filter(t => (builder.peopleCount || 1) > (t.max_capacity || 4));
     const isOverCapacity = overCapacityThemes.length > 0;
 
-    const hasItems = builder.themes.length > 0 || !!builder.package || builder.addons.length > 0 || builder.cafeSnacks.length > 0;
+    const hasItems = builder.themes.length > 0 || builder.packages.length > 0 || builder.addons.length > 0 || builder.cafeSnacks.length > 0;
     const hasName = builder.customerName && builder.customerName.trim() !== '';
     const canProcess = hasItems && hasName && !!builder.paymentMethod && !isProcessing && !isOverCapacity;
 
@@ -127,9 +126,9 @@ export default function NewTransaction() {
                                 <input
                                     id="customer-name"
                                     className="input"
-                                    style={{ paddingLeft: 40, height: 50, fontSize: 16 }}
+                                    style={{ paddingLeft: 40, height: 50, fontSize: 16, background: '#FAFAFA' }}
                                     placeholder="Customer Name"
-                                    value={builder.customerName}
+                                    value={builder.customerName || ''}
                                     onChange={(e) => setBuilderField('customerName', e.target.value)}
                                 />
                             </div>
@@ -161,116 +160,63 @@ export default function NewTransaction() {
                     {/* ── SECTION 1: Theme ───────────────────────────────────────────── */}
                     <div className="card" style={{ padding: 24 }}>
                         <SectionHeader step="1" title="Theme" subtitle="Choose your backdrop theme" />
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 }}>
+
+                        {/* Dropdown for quick selection */}
+                        <div style={{ position: 'relative', marginBottom: 16 }}>
+                            <Tag size={16} color="#8E8E93" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', zIndex: 1 }} />
+                            <ChevronDown size={16} color="#8E8E93" style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                            <select
+                                className="input"
+                                style={{ paddingLeft: 40, paddingRight: 40, appearance: 'none', cursor: 'pointer', background: '#FAFAFA' }}
+                                value=""
+                                onChange={(e) => {
+                                    const theme = themesList.find(t => t.id === parseInt(e.target.value));
+                                    if (theme) updateThemeQuantity(theme, 1);
+                                }}
+                            >
+                                <option value="" disabled>Search or select theme...</option>
+                                {themesList.filter(t => t.active !== false).map(t => (
+                                    <option key={t.id} value={t.id}>{t.name} — {formatCurrency(t.price)}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
                             {themesList.filter(t => t.active !== false).length === 0 ? (
                                 <div style={{ gridColumn: 'span 2', textAlign: 'center', padding: '40px 0', color: '#8E8E93' }}>
                                     No themes available...
                                 </div>
                             ) : themesList.filter(t => t.active !== false).map((theme, idx) => {
-                                // Map backend ID to existing store prefixes/colors if possible
                                 const selectedItem = (builder.themes || []).find(t => t.id === theme.id);
                                 const qty = selectedItem ? selectedItem.quantity : 0;
                                 const selected = qty > 0;
                                 return (
                                     <div
                                         key={theme.id}
-                                        id={`theme-${theme.id}`}
-                                        className={`theme-card ${selected ? 'selected' : ''}`}
                                         style={{
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            aspectRatio: '1/1',
-                                            padding: 0,
-                                            overflow: 'hidden',
-                                            position: 'relative',
-                                            cursor: 'pointer',
-                                            border: selected ? '3px solid #111' : '1px solid #E5E5EA',
-                                            borderRadius: 16,
-                                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                                            padding: 12, borderRadius: 14, background: selected ? '#111' : '#FAFAFA',
+                                            border: selected ? '2px solid #111' : '1px solid #E5E5EA',
+                                            display: 'flex', flexDirection: 'column', gap: 8, cursor: 'pointer',
+                                            transition: 'all 0.15s ease', position: 'relative'
                                         }}
-                                        onClick={() => updateThemeQuantity(theme, qty > 0 ? -qty : 1)}
+                                        onClick={() => updateThemeQuantity(theme, qty > 0 ? 0 : 1)}
                                     >
                                         <div style={{
-                                            flex: 1,
-                                            background: theme.color || THEME_Gradients[idx % THEME_Gradients.length],
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: 8,
-                                            padding: 12,
-                                            textAlign: 'center'
-                                        }}>
-                                            <div style={{
-                                                fontSize: 16,
-                                                fontWeight: 800,
-                                                color: 'white',
-                                                textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                                                lineHeight: 1.2
-                                            }}>
-                                                {theme.name}
-                                            </div>
-                                            <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
-                                                {formatCurrency(theme.price || 0)} / ppl
-                                            </div>
-                                            <div style={{
-                                                fontSize: 11,
-                                                fontWeight: 600,
-                                                color: 'rgba(255,255,255,0.9)',
-                                                background: 'rgba(0,0,0,0.3)',
-                                                padding: '2px 8px',
-                                                borderRadius: 10
-                                            }}>
-                                                Max: {theme.max_capacity || 4} ppl
-                                            </div>
-
-                                            {selected ? (
-                                                <div style={{
-                                                    background: 'rgba(255,255,255,0.2)',
-                                                    backdropFilter: 'blur(4px)',
-                                                    borderRadius: 12,
-                                                    padding: '4px 12px',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 8,
-                                                    color: 'white'
-                                                }} onClick={e => e.stopPropagation()}>
-                                                    <button
-                                                        onClick={() => updateThemeQuantity(theme, -1)}
-                                                        style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 4 }}
-                                                    >
-                                                        <Minus size={16} />
-                                                    </button>
-                                                    <span style={{ fontWeight: 800, fontSize: 18 }}>{qty}</span>
-                                                    <button
-                                                        onClick={() => updateThemeQuantity(theme, 1)}
-                                                        style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 4 }}
-                                                    >
-                                                        <Plus size={16} />
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div style={{
-                                                    width: 40, height: 40,
-                                                    borderRadius: '50%',
-                                                    background: 'rgba(255,255,255,0.15)',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    color: 'white'
-                                                }}>
-                                                    <Plus size={20} />
-                                                </div>
-                                            )}
+                                            height: 4, width: 24, borderRadius: 2, marginBottom: 4,
+                                            background: theme.color || THEME_Gradients[idx % THEME_Gradients.length]
+                                        }} />
+                                        <div style={{ fontSize: 13, fontWeight: 700, color: selected ? 'white' : '#111', lineHeight: 1.2 }}>
+                                            {theme.name}
+                                        </div>
+                                        <div style={{ fontSize: 11, fontWeight: 600, color: selected ? 'rgba(255,255,255,0.6)' : '#8E8E93' }}>
+                                            {formatCurrency(theme.price || 0)}
                                         </div>
 
                                         {selected && (
-                                            <div style={{
-                                                position: 'absolute', top: 12, right: 12,
-                                                background: '#111', color: 'white',
-                                                width: 28, height: 28, borderRadius: '50%',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-                                            }}>
-                                                <CheckCircle2 size={16} />
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 20, padding: 2 }} onClick={e => e.stopPropagation()}>
+                                                <button onClick={() => updateThemeQuantity(theme, -1)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 4 }}><Minus size={14} /></button>
+                                                <span style={{ fontWeight: 800, fontSize: 14, color: 'white', minWidth: 14, textAlign: 'center' }}>{qty}</span>
+                                                <button onClick={() => updateThemeQuantity(theme, 1)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 4 }}><Plus size={14} /></button>
                                             </div>
                                         )}
                                     </div>
@@ -279,128 +225,123 @@ export default function NewTransaction() {
                         </div>
                     </div>
 
-                    {/* ── SECTION 2: Package ─────────────────────────────────────────── */}
+                    {/* ── SECTION 2: Cafe & Snacks ────────────────────────────────────────── */}
                     <div className="card" style={{ padding: 24 }}>
-                        <SectionHeader step="2" title="Package" subtitle="Select the shoot package" />
+                        <SectionHeader step="2" title="Cafe & Snacks" subtitle="Select refreshments" />
+                        <div style={{ position: 'relative', marginBottom: 16 }}>
+                            <Coffee size={16} color="#8E8E93" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', zIndex: 1 }} />
+                            <ChevronDown size={16} color="#8E8E93" style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                            <select
+                                className="input"
+                                style={{ paddingLeft: 40, paddingRight: 40, appearance: 'none', cursor: 'pointer', background: '#FAFAFA' }}
+                                value=""
+                                onChange={(e) => {
+                                    const item = cafeSnacksList.find(c => c.id === parseInt(e.target.value));
+                                    if (item) updateCafeSnackQuantity(item, 1);
+                                }}
+                            >
+                                <option value="" disabled>Add cafe item...</option>
+                                {cafeSnacksList.filter(c => c.active !== false).map(c => (
+                                    <option key={c.id} value={c.id}>{c.label} — {formatCurrency(c.price)}</option>
+                                ))}
+                            </select>
+                        </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                            {packagesList.filter(p => p.active !== false).map((pkg) => {
-                                const selected = builder.package?.id === pkg.id;
-                                return (
-                                    <div
-                                        key={pkg.id}
-                                        id={`pkg-${pkg.id}`}
-                                        className={`pkg-card ${selected ? 'selected' : ''}`}
-                                        onClick={() => setBuilderField('package', pkg)}
-                                    >
-                                        <div style={{
-                                            fontSize: 11, fontWeight: 600,
-                                            textTransform: 'uppercase', letterSpacing: '0.06em',
-                                            color: selected ? 'rgba(255,255,255,0.6)' : '#8E8E93',
-                                            marginBottom: 6,
-                                        }}>
-                                            {pkg.description}
-                                        </div>
-                                        <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4, letterSpacing: '-0.01em' }}>
-                                            {pkg.label}
-                                        </div>
-                                        <div style={{
-                                            fontSize: 18, fontWeight: 800,
-                                            color: selected ? 'rgba(255,255,255,0.9)' : '#111',
-                                        }}>
-                                            {formatCurrency(pkg.price)}
-                                        </div>
-                                        {selected && (
-                                            <div style={{ marginTop: 10 }}>
-                                                <CheckCircle2 size={18} color="rgba(255,255,255,0.7)" />
-                                            </div>
-                                        )}
+                            {builder.cafeSnacks.map((item) => (
+                                <div key={item.id} style={{
+                                    border: '1.5px solid #111', background: '#FAFAFA',
+                                    borderRadius: 12, padding: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                }}>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontSize: 13, fontWeight: 700, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</div>
+                                        <div style={{ fontSize: 11, color: '#8E8E93', fontWeight: 600 }}>{formatCurrency(item.price)}</div>
                                     </div>
-                                );
-                            })}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#111', borderRadius: 20, padding: 2 }}>
+                                        <button onClick={() => updateCafeSnackQuantity(item, -1)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 4 }}><Minus size={14} /></button>
+                                        <span style={{ color: 'white', fontWeight: 800, fontSize: 14, minWidth: 14, textAlign: 'center' }}>{item.quantity}</span>
+                                        <button onClick={() => updateCafeSnackQuantity(item, 1)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 4 }}><Plus size={14} /></button>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
-                    {/* ── SECTION 3: Add-ons ─────────────────────────────────────────── */}
+                    {/* ── SECTION 3: Package ─────────────────────────────────────────── */}
                     <div className="card" style={{ padding: 24 }}>
-                        <SectionHeader step="3" title="Add-ons" subtitle="Toggle optional extras" />
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                            {addonsList.filter(a => a.active !== false).map((addon) => {
-                                const active = builder.addons.some((a) => a.id === addon.id);
-                                return (
-                                    <button
-                                        key={addon.id}
-                                        id={`addon-${addon.id}`}
-                                        className={`addon-toggle ${active ? 'active' : ''}`}
-                                        onClick={() => toggleAddon(addon)}
-                                    >
-                                        {active && <span style={{ marginRight: 4 }}>✓</span>}
-                                        {addon.label}
-                                        <span style={{
-                                            marginLeft: 6, fontSize: 11,
-                                            opacity: 0.7, fontWeight: 500,
-                                        }}>
-                                            +{formatCurrency(addon.price)}
-                                        </span>
-                                    </button>
-                                );
-                            })}
+                        <SectionHeader step="3" title="Package" subtitle="Select the shoot package" />
+                        <div style={{ position: 'relative', marginBottom: 16 }}>
+                            <Tag size={16} color="#8E8E93" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', zIndex: 1 }} />
+                            <ChevronDown size={16} color="#8E8E93" style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                            <select
+                                className="input"
+                                style={{ paddingLeft: 40, paddingRight: 40, appearance: 'none', cursor: 'pointer', background: '#FAFAFA' }}
+                                value=""
+                                onChange={(e) => {
+                                    const pkg = packagesList.find(p => p.id === parseInt(e.target.value));
+                                    if (pkg) updatePackageQuantity(pkg, 1);
+                                }}
+                            >
+                                <option value="" disabled>Add package...</option>
+                                {packagesList.filter(p => p.active !== false).map(p => (
+                                    <option key={p.id} value={p.id}>{p.label} — {formatCurrency(p.price)}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+                            {builder.packages.map((pkg) => (
+                                <div key={pkg.id} style={{
+                                    border: '1.5px solid #111', background: '#111', color: 'white',
+                                    borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 8
+                                }}>
+                                    <div>
+                                        <div style={{ fontSize: 13, fontWeight: 700 }}>{pkg.label}</div>
+                                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{formatCurrency(pkg.price)}</div>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 20, padding: 2, alignSelf: 'flex-start' }}>
+                                        <button onClick={() => updatePackageQuantity(pkg, -1)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 4 }}><Minus size={14} /></button>
+                                        <span style={{ fontWeight: 800, fontSize: 14, minWidth: 14, textAlign: 'center' }}>{pkg.quantity}</span>
+                                        <button onClick={() => updatePackageQuantity(pkg, 1)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 4 }}><Plus size={14} /></button>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
-                    {/* ── SECTION 4: Cafe & Snack Menu ─────────────────────────────────────────── */}
+                    {/* ── SECTION 4: Add-ons ─────────────────────────────────────────── */}
                     <div className="card" style={{ padding: 24 }}>
-                        <SectionHeader step="4" title="Cafe & Snacks" subtitle="Refreshments while waiting" />
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-                            {cafeSnacksList.filter(c => c.active !== false).map((item) => {
-                                const selectedItem = builder.cafeSnacks.find(c => c.id === item.id);
-                                const qty = selectedItem ? selectedItem.quantity : 0;
-
-                                return (
-                                    <div key={item.id} style={{
-                                        border: qty > 0 ? '1.5px solid #111' : '1.5px solid #E5E5EA',
-                                        background: qty > 0 ? '#FAFAFA' : 'white',
-                                        borderRadius: 12, padding: 14,
-                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                        transition: 'all 0.15s ease'
-                                    }}>
-                                        <div>
-                                            <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 2 }}>{item.label}</div>
-                                            <div style={{ fontSize: 12, color: '#8E8E93', fontWeight: 600 }}>{formatCurrency(item.price)}</div>
-                                        </div>
-
-                                        {qty === 0 ? (
-                                            <button
-                                                onClick={() => updateCafeSnackQuantity(item, 1)}
-                                                style={{
-                                                    background: '#F2F2F7', border: 'none', borderRadius: 22,
-                                                    width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    cursor: 'pointer', color: '#111'
-                                                }}
-                                            >
-                                                <Plus size={18} />
-                                            </button>
-                                        ) : (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#111', borderRadius: 22, padding: '4px' }}>
-                                                <button
-                                                    onClick={() => updateCafeSnackQuantity(item, -1)}
-                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'white', display: 'flex', width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
-                                                >
-                                                    <Minus size={16} />
-                                                </button>
-                                                <span style={{ fontSize: 15, fontWeight: 800, color: 'white', minWidth: 16, textAlign: 'center' }}>
-                                                    {qty}
-                                                </span>
-                                                <button
-                                                    onClick={() => updateCafeSnackQuantity(item, 1)}
-                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'white', display: 'flex', width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
-                                                >
-                                                    <Plus size={16} />
-                                                </button>
-                                            </div>
-                                        )}
+                        <SectionHeader step="4" title="Add-ons" subtitle="Optional extras" />
+                        <div style={{ position: 'relative', marginBottom: 16 }}>
+                            <Plus size={16} color="#8E8E93" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', zIndex: 1 }} />
+                            <ChevronDown size={16} color="#8E8E93" style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                            <select
+                                className="input"
+                                style={{ paddingLeft: 40, paddingRight: 40, appearance: 'none', cursor: 'pointer', background: '#FAFAFA' }}
+                                value=""
+                                onChange={(e) => {
+                                    const addon = addonsList.find(a => a.id === parseInt(e.target.value));
+                                    if (addon) updateAddonQuantity(addon, 1);
+                                }}
+                            >
+                                <option value="" disabled>Add extra add-on...</option>
+                                {addonsList.filter(a => a.active !== false).map(a => (
+                                    <option key={a.id} value={a.id}>{a.label} — {formatCurrency(a.price)}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            {builder.addons.map((a) => (
+                                <div key={a.id} style={{
+                                    background: '#F2F2F7', borderRadius: 20, padding: '4px 8px 4px 14px',
+                                    display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #E5E5EA'
+                                }}>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#111' }}>{a.label}</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 16, border: '1px solid #E5E5EA' }}>
+                                        <button onClick={() => updateAddonQuantity(a, -1)} style={{ background: 'none', border: 'none', color: '#111', cursor: 'pointer', padding: 4 }}><Minus size={12} /></button>
+                                        <span style={{ fontSize: 12, fontWeight: 800, minWidth: 12, textAlign: 'center' }}>{a.quantity}</span>
+                                        <button onClick={() => updateAddonQuantity(a, 1)} style={{ background: 'none', border: 'none', color: '#111', cursor: 'pointer', padding: 4 }}><Plus size={12} /></button>
                                     </div>
-                                );
-                            })}
+                                </div>
+                            ))}
                         </div>
                     </div>
 
@@ -541,12 +482,14 @@ export default function NewTransaction() {
 
                             {/* Package */}
                             <div style={{ marginBottom: 12 }}>
-                                <div style={{ fontSize: 11, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Package</div>
-                                {builder.package ? (
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontWeight: 600, fontSize: 14 }}>{builder.package.label}</span>
-                                        <span style={{ fontWeight: 700 }}>{formatCurrency(builder.package.price)}</span>
-                                    </div>
+                                <div style={{ fontSize: 11, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Packages</div>
+                                {builder.packages.length > 0 ? (
+                                    builder.packages.map(p => (
+                                        <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                            <span style={{ fontWeight: 600, fontSize: 14 }}>{p.label} <span style={{ color: '#8E8E93' }}>(x{p.quantity})</span></span>
+                                            <span style={{ fontWeight: 700 }}>{formatCurrency(p.price * p.quantity)}</span>
+                                        </div>
+                                    ))
                                 ) : (
                                     <div style={{ color: '#C7C7CC', fontSize: 13, fontStyle: 'italic' }}>No package selected</div>
                                 )}
@@ -560,8 +503,8 @@ export default function NewTransaction() {
                                         <div style={{ fontSize: 11, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Add-ons</div>
                                         {builder.addons.map((a) => (
                                             <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                                <span style={{ fontSize: 13, color: '#636366' }}>+ {a.label}</span>
-                                                <span style={{ fontSize: 13, fontWeight: 600 }}>{formatCurrency(a.price)}</span>
+                                                <span style={{ fontSize: 13, color: '#636366' }}>+ {a.label} (x{a.quantity})</span>
+                                                <span style={{ fontSize: 13, fontWeight: 600 }}>{formatCurrency(a.price * a.quantity)}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -648,18 +591,27 @@ export default function NewTransaction() {
                                     Payment Method
                                 </div>
                                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                    {['Cash', 'QRIS', 'Transfer', 'E-wallet'].map((method) => (
+                                    {['Cash', 'QRIS', 'Transfer'].map((method) => (
                                         <button
                                             key={method}
-                                            id={`pay-${method.toLowerCase().replace('-', '')}`}
-                                            className={`pay-method ${builder.paymentMethod === method ? 'selected' : ''}`}
+                                            id={`pay-${method.toLowerCase()}`}
                                             onClick={() => setBuilderField('paymentMethod', method)}
-                                            style={{ flex: '1 1 calc(50% - 4px)', minWidth: 0 }}
+                                            style={{
+                                                flex: '1 1 calc(33.333% - 6px)', minWidth: 0,
+                                                padding: '12px', borderRadius: 12, fontSize: 14, fontWeight: 700,
+                                                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                                                border: builder.paymentMethod === method ? '2px solid #111' : '1px solid #E5E5EA',
+                                                background: builder.paymentMethod === method ? '#FAFAFA' : 'white',
+                                                color: builder.paymentMethod === method ? '#111' : '#8E8E93',
+                                                cursor: 'pointer', transition: 'all 0.15s ease',
+                                                transform: builder.paymentMethod === method ? 'scale(0.98)' : 'scale(1)',
+                                            }}
                                         >
-                                            {method === 'Cash' && '💵 '}
-                                            {method === 'QRIS' && '📱 '}
-                                            {method === 'Transfer' && '🏦 '}
-                                            {method === 'E-wallet' && '💳 '}
+                                            <div style={{ fontSize: 24 }}>
+                                                {method === 'Cash' && '💵'}
+                                                {method === 'QRIS' && '📱'}
+                                                {method === 'Transfer' && '🏦'}
+                                            </div>
                                             {method}
                                         </button>
                                     ))}
@@ -716,10 +668,12 @@ export default function NewTransaction() {
                                     borderRadius: 16,
                                     fontWeight: 800,
                                     letterSpacing: '0.04em',
-                                    background: isProcessing ? '#8E8E93' : (canProcess ? '#111' : '#E5E5EA'),
+                                    background: isProcessing ? '#8E8E93' : (canProcess ? '#34C759' : '#E5E5EA'),
                                     color: canProcess ? 'white' : '#8E8E93',
-                                    transition: 'all 0.2s ease',
-                                    boxShadow: canProcess ? '0 4px 16px rgba(17,17,17,0.25)' : 'none',
+                                    border: 'none',
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    boxShadow: canProcess ? '0 8px 24px rgba(52, 199, 89, 0.3)' : 'none',
+                                    transform: canProcess ? 'translateY(-2px)' : 'none',
                                 }}
                             >
                                 {isProcessing ? 'PROCESSING...' : '🖤 PROCESS PAYMENT'}
