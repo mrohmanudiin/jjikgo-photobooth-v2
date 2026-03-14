@@ -13,6 +13,7 @@ import { BoothManagement } from './pages/BoothManagement';
 import { UserManagement } from './pages/UserManagement';
 import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
+import { Branches } from './pages/Branches';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
       <Routes>
         <Route path="/" element={<AdminLayout />}>
           <Route index element={<Dashboard />} />
+          <Route path="branches" element={<Branches />} />
           <Route path="booths" element={<LiveBooth />} />
           <Route path="queue" element={<QueueMonitor />} />
           <Route path="transactions" element={<TransactionHistory />} />

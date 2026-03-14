@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
+import ShiftOverlay from '../shift/ShiftOverlay';
 import { usePrintAlerts } from '../../App';
 import { useStore } from '../../store/useStore';
 
@@ -113,6 +114,7 @@ function PrintAlertBanner() {
 export default function MainLayout() {
     return (
         <div style={{ display: 'flex', minHeight: '100vh', background: '#F5F5F5' }}>
+            <ShiftOverlay />
             <Sidebar />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 <Topbar />

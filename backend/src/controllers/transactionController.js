@@ -2,7 +2,11 @@ const prisma = require('../config/prisma');
 
 exports.getAllTransactions = async (req, res) => {
     try {
+        const { branch_id } = req.query;
+        const where = branch_id ? { branch_id: parseInt(branch_id) } : {};
+
         const transactions = await prisma.transaction.findMany({
+            where,
             include: { queue: { include: { theme: true } }, theme: true },
             orderBy: { created_at: 'desc' }
         });
@@ -25,12 +29,15 @@ exports.getAllTransactions = async (req, res) => {
                     promo: tx.promo,
                     note: tx.note,
                     base_price: tx.total_price,
-                    discount: 0, // Simplified for now
+                    discount: 0, 
                     total: tx.total_price / (tx.queue.length || 1),
                     payment_method: tx.payment_method,
                     payment_status: 'PAID',
                     order_status: q.status,
-                    created_at: tx.created_at
+                    created_at: tx.created_at,
+                    branch_id: tx.branch_id,
+                    shift_id: tx.shift_id,
+                    user_id: tx.user_id
                 });
             }
         }
@@ -43,20 +50,19 @@ exports.getAllTransactions = async (req, res) => {
 
 exports.createTransaction = async (req, res) => {
     try {
-        const { sessions } = req.body;
+        const { sessions, branch_id, shift_id, user_id } = req.body;
         if (!sessions || sessions.length === 0) return res.status(400).json({ error: 'No sessions provided' });
 
         const createdSessions = [];
-
-        // Assuming sessions share the same order/invoice info since they are one checkout:
         const mainSession = sessions[0];
-
-        // Ensure unique invoice ID
         const invoiceNumber = `JJ-${Date.now()}`;
 
         const transaction = await prisma.transaction.create({
             data: {
                 invoice_number: invoiceNumber,
+                branch_id: parseInt(branch_id),
+                shift_id: shift_id ? parseInt(shift_id) : null,
+                user_id: user_id ? parseInt(user_id) : null,
                 customer_name: mainSession.customer_name || 'Walkin',
                 customer_email: '',
                 people_count: parseInt(mainSession.people_count) || 1,
@@ -81,7 +87,7 @@ exports.createTransaction = async (req, res) => {
                     transaction_id: transaction.id,
                     theme_id: tId,
                     queue_number: qNum,
-                    status: s.order_status || 'WAITING_SHOOT',
+                    status: s.order_status || 'waiting',
                 }
             });
 
@@ -89,7 +95,7 @@ exports.createTransaction = async (req, res) => {
         }
 
         const io = req.app.get('io');
-        io.emit('queueUpdated', { action: 'new_transactions' });
+        io.emit('queueUpdated', { action: 'new_transactions', branch_id });
 
         res.status(201).json({ success: true, all_sessions: createdSessions });
     } catch (error) {

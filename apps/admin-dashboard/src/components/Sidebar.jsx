@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
     LayoutDashboard,
+    Building2,
     MonitorPlay,
     Users,
     History,
@@ -21,15 +22,11 @@ import { Button } from './ui/Button';
 export function Sidebar({ onClose }) {
     const navItems = [
         { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-        { name: 'Live Booths', path: '/booths', icon: MonitorPlay },
-        { name: 'Queue', path: '/queue', icon: Users },
+        { name: 'Branches', path: '/branches', icon: Building2 },
         { name: 'Transactions', path: '/transactions', icon: History },
         { name: 'Finance', path: '/finance', icon: CircleDollarSign },
         { name: 'Daily Cash', path: '/daily-cash', icon: Wallet },
-        { name: 'Photo Sessions', path: '/sessions', icon: Camera },
-        { name: 'Print Requests', path: '/prints', icon: Printer },
         { name: 'Themes', path: '/themes', icon: Palette },
-        { name: 'Booths', path: '/booths-manage', icon: MonitorSpeaker },
         { name: 'Users', path: '/users', icon: Users },
         { name: 'Reports', path: '/reports', icon: FileText },
         { name: 'Settings', path: '/settings', icon: Settings },
@@ -38,7 +35,10 @@ export function Sidebar({ onClose }) {
     return (
         <aside className="w-64 border-r bg-card flex flex-col h-full shadow-sm">
             <div className="h-16 flex items-center justify-between px-6 border-b">
-                <h1 className="text-xl font-bold tracking-tight">Photobooth<span className="text-primary">Admin</span></h1>
+                <div className="flex items-center gap-3">
+                    <img src="/logo.png" alt="Logo" className="h-8 w-8 object-contain" />
+                    <h1 className="text-xl font-bold tracking-tight">Photobooth<span className="text-primary">Admin</span></h1>
+                </div>
                 {onClose && (
                     <Button variant="ghost" size="icon" onClick={onClose} className="lg:hidden text-muted-foreground mr-[-8px]">
                         <X className="h-5 w-5" />

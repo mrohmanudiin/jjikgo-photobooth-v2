@@ -13,13 +13,14 @@ export const ORDER_STATUSES = [
     'done',
 ];
 
-// Backend statuses that map to cashier statuses
+// Backend statuses that map to cashier statuses (All normalized to lowercase now)
 export const BACKEND_STATUS_MAP = {
-    waiting: 'WAITING_SHOOT',
-    called: 'SHOOTING',
-    in_session: 'SHOOTING',
-    print_requested: 'PRINTING',
-    done: 'DONE',
+    waiting: 'waiting',
+    called: 'called',
+    in_session: 'in_session',
+    print_requested: 'print_requested',
+    printing: 'printing',
+    done: 'done',
 };
 
 
@@ -99,9 +100,108 @@ export const useStore = create(
 
             // Auth
             isLoggedIn: false,
-            cashierName: '',
-            login: (name) => set({ isLoggedIn: true, cashierName: name }),
-            logout: () => set({ isLoggedIn: false, cashierName: '' }),
+            user: null, // { id, username, full_name, role, branch_id }
+            branch: null, // { id, name, location }
+            currentShift: null, // { id, starting_cash, start_time, total_expenses }
+
+            login: async (username, password) => {
+                try {
+                    const { api } = await import('../utils/api');
+                    const response = await api.post('/auth/login', { username, password });
+                    const userData = response.data;
+                    
+                    set({ 
+                        isLoggedIn: true, 
+                        user: {
+                            id: userData.id,
+                            username: userData.username,
+                            full_name: userData.full_name,
+                            role: userData.role,
+                            branch_id: userData.branch_id
+                        },
+                        branch: userData.branch
+                    });
+
+                    // Check for active shift
+                    get().refreshCurrentShift();
+                    
+                    return { success: true };
+                } catch (err) {
+                    console.error("Login failed", err);
+                    return { success: false, error: err.response?.data?.error || 'Login failed' };
+                }
+            },
+
+            logout: () => set({ 
+                isLoggedIn: false, 
+                user: null, 
+                branch: null, 
+                currentShift: null 
+            }),
+
+            // Shift Management
+            refreshCurrentShift: async () => {
+                const { branch } = get();
+                if (!branch) return;
+                try {
+                    const { api } = await import('../utils/api');
+                    const response = await api.get(`/shifts/current?branch_id=${branch.id}`);
+                    set({ currentShift: response.data });
+                } catch (err) {
+                    console.error("Failed to refresh shift", err);
+                }
+            },
+
+            startShift: async (startingCash) => {
+                const { branch, user } = get();
+                try {
+                    const { api } = await import('../utils/api');
+                    const response = await api.post('/shifts/start', {
+                        branch_id: branch.id,
+                        user_id: user.id,
+                        starting_cash: startingCash
+                    });
+                    set({ currentShift: response.data });
+                    return { success: true };
+                } catch (err) {
+                    console.error("Failed to start shift", err);
+                    return { success: false, error: err.response?.data?.error || 'Failed to start shift' };
+                }
+            },
+
+            endShift: async (endingCash) => {
+                const { currentShift } = get();
+                if (!currentShift) return;
+                try {
+                    const { api } = await import('../utils/api');
+                    await api.post(`/shifts/${currentShift.id}/end`, {
+                        ending_cash: endingCash
+                    });
+                    set({ currentShift: null });
+                    return { success: true };
+                } catch (err) {
+                    console.error("Failed to end shift", err);
+                    return { success: false, error: err.response?.data?.error || 'Failed to end shift' };
+                }
+            },
+
+            addExpense: async (amount, description) => {
+                const { currentShift } = get();
+                if (!currentShift) return;
+                try {
+                    const { api } = await import('../utils/api');
+                    await api.post('/shifts/expenses', {
+                        shift_id: currentShift.id,
+                        amount,
+                        description
+                    });
+                    get().refreshCurrentShift();
+                    return { success: true };
+                } catch (err) {
+                    console.error("Failed to add expense", err);
+                    return { success: false, error: err.response?.data?.error || 'Failed to add expense' };
+                }
+            },
 
             // Counters
             invoiceCounter: 1,
@@ -255,7 +355,12 @@ export const useStore = create(
                         const queueNum = updatedThemeCounters[themeId] || 1;
 
                         const tx = {
-                            id: `${currentInvoice}-${themeId}-${i}`, // Unique ID for this session
+                            // Backend needs these:
+                            branch_id: s.branch?.id,
+                            shift_id: s.currentShift?.id,
+                            user_id: s.user?.id,
+
+                            id: `${currentInvoice}-${themeId}-${i}`, 
                             session_id: `${currentInvoice}-${themeId}-${i}`,
                             order_id: `JJ-${padNum(currentInvoice)}`,
                             queue_number: `${prefix}${padNum(queueNum, 2)}`,
@@ -274,7 +379,7 @@ export const useStore = create(
                             note: s.builder.note,
                             payment_method: s.builder.paymentMethod,
                             payment_status: 'PAID',
-                            order_status: 'waiting', // Changed from WAITING_SHOOT to sync with staff app
+                            order_status: 'waiting',
                             created_at: new Date().toISOString(),
                         };
                         newTransactions.push(tx);
@@ -285,6 +390,10 @@ export const useStore = create(
                 // If no themes but has cafe:
                 if (s.builder.themes.length === 0) {
                     const tx = {
+                        branch_id: s.branch?.id,
+                        shift_id: s.currentShift?.id,
+                        user_id: s.user?.id,
+
                         id: `${currentInvoice}-cafe`,
                         session_id: `${currentInvoice}-cafe`,
                         order_id: `JJ-${padNum(currentInvoice)}`,
@@ -304,19 +413,17 @@ export const useStore = create(
                         note: s.builder.note,
                         payment_method: s.builder.paymentMethod,
                         payment_status: 'PAID',
-                        order_status: 'done', // Changed from DONE to done to sync with staff app
+                        order_status: 'done',
                         created_at: new Date().toISOString(),
                     };
                     newTransactions.push(tx);
                 }
 
-                // Do not update local state yet, let the backend response update it via refreshTransactions
                 set((prev) => ({
                     invoiceCounter: prev.invoiceCounter + 1,
                     themeCounters: updatedThemeCounters
                 }));
 
-                // Return the generated sessions array to hit the API
                 return newTransactions;
             },
 
@@ -387,8 +494,9 @@ export const useStore = create(
             name: 'jjikgo-store',
             partialize: (s) => ({
                 isLoggedIn: s.isLoggedIn,
-                cashierName: s.cashierName,
-                transactions: s.transactions,
+                user: s.user,
+                branch: s.branch,
+                currentShift: s.currentShift,
                 invoiceCounter: s.invoiceCounter,
                 themeCounters: s.themeCounters,
             }),

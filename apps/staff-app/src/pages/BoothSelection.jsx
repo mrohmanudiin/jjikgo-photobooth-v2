@@ -24,7 +24,7 @@ const ACCENT_GRADIENTS = [
     'linear-gradient(135deg, #EF4444, #FC8181)',
 ];
 
-export default function BoothSelection({ themes, onSelect }) {
+export default function BoothSelection({ themes, queueData, onSelect }) {
     return (
         <div className="booth-screen animate-fadeIn">
             <div className="booth-logo">JJIKGO PHOTOBOOTH</div>
@@ -45,36 +45,49 @@ export default function BoothSelection({ themes, onSelect }) {
                 </div>
             ) : (
                 <div className="booth-grid">
-                    {themes.map((theme, idx) => (
-                        <button
-                            key={theme.id}
-                            className="booth-card animate-fadeUp"
-                            style={{ animationDelay: `${idx * 0.08}s` }}
-                            onClick={() => onSelect(theme)}
-                        >
-                            {/* Colored top stripe */}
-                            <div style={{
-                                position: 'absolute', top: 0, left: 0, right: 0, height: 3,
-                                background: ACCENT_GRADIENTS[idx % ACCENT_GRADIENTS.length],
-                                borderRadius: '20px 20px 0 0',
-                            }} />
+                    {themes.map((theme, idx) => {
+                        // Count waiting customers for this theme
+                        const myQueues = queueData[theme.name] || [];
+                        const waitingCount = myQueues.filter(q => q.status?.toLowerCase() === 'waiting').length;
 
-                            <div className="booth-card-icon">{getBoothIcon(theme)}</div>
+                        return (
+                            <button
+                                key={theme.id}
+                                className="booth-card animate-fadeUp"
+                                style={{ animationDelay: `${idx * 0.08}s` }}
+                                onClick={() => onSelect(theme)}
+                            >
+                                {/* Colored top stripe */}
+                                <div style={{
+                                    position: 'absolute', top: 0, left: 0, right: 0, height: 3,
+                                    background: ACCENT_GRADIENTS[idx % ACCENT_GRADIENTS.length],
+                                    borderRadius: '20px 20px 0 0',
+                                }} />
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                <div className="booth-card-name">{theme.name}</div>
-                                <div className="booth-card-prefix">
-                                    Prefix: {theme.prefix || 'T'}
+                                {/* Queue notification badge */}
+                                {waitingCount > 0 && (
+                                    <div className="booth-badge">
+                                        {waitingCount}
+                                    </div>
+                                )}
+
+                                <div className="booth-card-icon">{getBoothIcon(theme)}</div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <div className="booth-card-name">{theme.name}</div>
+                                    <div className="booth-card-prefix">
+                                        Prefix: {theme.prefix || 'T'}
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Arrow hint */}
-                            <div style={{
-                                position: 'absolute', bottom: 14, right: 16,
-                                fontSize: 18, opacity: 0.2
-                            }}>→</div>
-                        </button>
-                    ))}
+                                {/* Arrow hint */}
+                                <div style={{
+                                    position: 'absolute', bottom: 14, right: 16,
+                                    fontSize: 18, opacity: 0.2
+                                }}>→</div>
+                            </button>
+                        );
+                    })}
                 </div>
             )}
 

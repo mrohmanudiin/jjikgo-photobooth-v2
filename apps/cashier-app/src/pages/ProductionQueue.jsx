@@ -5,12 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, ChevronRight, Package, Coffee, ArrowRight, Printer } from 'lucide-react';
 
 const STATUS_COLORS = {
-    WAITING_SHOOT: { bg: '#FFF8EE', border: '#FFD580', text: '#9A6700', icon: '⏳' },
-    SHOOTING: { bg: '#EFF6FF', border: '#93C5FD', text: '#003F7D', icon: '📸' },
-    EDITING: { bg: '#F5EEFF', border: '#C4B5FD', text: '#432874', icon: '🎨' },
-    PRINTING: { bg: '#ECFDF5', border: '#6EE7B7', text: '#1A6651', icon: '🖨️' },
-    DONE: { bg: '#F0FFF4', border: '#86EFAC', text: '#155724', icon: '✅' },
-    // Backend / staff-app statuses
     waiting: { bg: '#FFF8EE', border: '#FFD580', text: '#9A6700', icon: '⏳' },
     called: { bg: '#EFF6FF', border: '#93C5FD', text: '#003F7D', icon: '📣' },
     in_session: { bg: '#EFF6FF', border: '#93C5FD', text: '#003F7D', icon: '📸' },
@@ -439,17 +433,13 @@ function StatusChanger({ currentStatus, orderId, onChange }) {
     }
 
     const getNextAction = (status) => {
-        switch (status) {
+        const s = status?.toLowerCase();
+        switch (s) {
             case 'waiting': return { next: 'called', label: 'Call Next', icon: '📣', color: '#007AFF', bg: '#E5F1FF' };
             case 'called': return { next: 'in_session', label: 'Start Session', icon: '📸', color: '#5856D6', bg: '#EEEBFF' };
             case 'in_session': return { next: 'print_requested', label: 'Request Print', icon: '🖨️', color: '#EC4899', bg: '#FDF2F8' };
             case 'print_requested': return { next: 'printing', label: 'Start Printing', icon: '🖨️', color: '#34C759', bg: '#EAFBEE' };
             case 'printing': return { next: 'done', label: 'Complete', icon: '✅', color: '#FFF', bg: '#111' };
-            // Legacy fallbacks
-            case 'WAITING_SHOOT': return { next: 'in_session', label: 'Start Session', icon: '📸', color: '#007AFF', bg: '#E5F1FF' };
-            case 'SHOOTING': return { next: 'print_requested', label: 'Request Print', icon: '🖨️', color: '#34C759', bg: '#EAFBEE' };
-            case 'EDITING': return { next: 'print_requested', label: 'Request Print', icon: '🖨️', color: '#34C759', bg: '#EAFBEE' };
-            case 'PRINTING': return { next: 'done', label: 'Complete', icon: '✅', color: '#FFF', bg: '#111' };
             default: return null;
         }
     };

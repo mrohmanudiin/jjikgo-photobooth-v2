@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { Camera, Eye, EyeOff, ArrowRight } from 'lucide-react';
 
-const DEMO_CREDENTIALS = { email: 'cashier@jjikgo.com', password: 'jjikgo123' };
+const DEMO_CREDENTIALS = { username: 'admin', password: 'admin123' };
 
 export default function Login() {
-    const [email, setEmail] = useState('');
+    const [username, setUsername] = useState('');
     const [password, setPass] = useState('');
     const [showPass, setShowP] = useState(false);
     const [error, setError] = useState('');
@@ -18,13 +18,13 @@ export default function Login() {
         e.preventDefault();
         setError('');
         setLoading(true);
-        await new Promise((r) => setTimeout(r, 700)); // simulate network
 
-        if (email === DEMO_CREDENTIALS.email && password === DEMO_CREDENTIALS.password) {
-            login('Kasir JJIKGO');
+        const result = await login(username, password);
+        
+        if (result.success) {
             navigate('/dashboard');
         } else {
-            setError('Email atau password salah. Coba lagi.');
+            setError(result.error);
             setLoading(false);
         }
     };
@@ -102,18 +102,18 @@ export default function Login() {
                 <form onSubmit={handleSubmit}>
                     <div style={{ marginBottom: 16 }}>
                         <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#636366', marginBottom: 6, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                            Email
+                            Username
                         </label>
                         <input
-                            id="login-email"
-                            type="email"
+                            id="login-username"
+                            type="text"
                             className="input"
-                            placeholder="cashier@jjikgo.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="admin"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
                             required
                             autoFocus
-                            autoComplete="email"
+                            autoComplete="username"
                         />
                     </div>
 
@@ -186,8 +186,8 @@ export default function Login() {
                     lineHeight: 1.6,
                 }}>
                     <strong style={{ color: '#636366' }}>Demo credentials:</strong><br />
-                    Email: cashier@jjikgo.com<br />
-                    Password: jjikgo123
+                    Username: admin<br />
+                    Password: admin123
                 </div>
             </div>
 

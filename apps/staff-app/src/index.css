@@ -274,6 +274,26 @@ body {
   border-radius: 100px;
 }
 
+.booth-badge {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  background: var(--waiting-fg);
+  color: #000;
+  font-size: 12px;
+  font-weight: 900;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(255, 149, 0, 0.4), 0 0 0 3px var(--bg-card);
+  animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
 /* ─── Main App Layout ─────────────────────────────────────────────────────────── */
 .app-layout {
   display: grid;

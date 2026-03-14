@@ -69,8 +69,11 @@ exports.startSession = async (req, res) => {
 
         const updatedQueue = await prisma.queue.update({
             where: { id: parseInt(queue_id) },
-            data: { status: 'in_session' },
-            include: { theme: true }
+            data: { 
+                status: 'in_session',
+                booth_id: booth_id ? parseInt(booth_id) : undefined
+            },
+            include: { theme: true, booth: true }
         });
 
         await prisma.transaction.update({
@@ -102,7 +105,7 @@ exports.finishSession = async (req, res) => {
         const updatedQueue = await prisma.queue.update({
             where: { id: parseInt(queue_id) },
             data: { status: 'done' },
-            include: { theme: true }
+            include: { theme: true, booth: true }
         });
 
         await prisma.transaction.update({

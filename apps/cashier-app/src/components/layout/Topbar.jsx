@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { formatTime, formatDate } from '../../utils/format';
-import { Bell, Plus } from 'lucide-react';
+import { Bell, Plus, DollarSign } from 'lucide-react';
 
 const PAGE_TITLES = {
     '/dashboard': 'Dashboard',
@@ -10,11 +10,15 @@ const PAGE_TITLES = {
     '/queue': 'Production Queue',
 };
 
+import ShiftModal from '../shift/ShiftModal';
+
 export default function Topbar() {
     const [time, setTime] = useState(new Date());
+    const [isShiftOpen, setIsShiftOpen] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
-    const cashierName = useStore((s) => s.cashierName);
+    const user = useStore((s) => s.user);
+    const branch = useStore((s) => s.branch);
     const activeQ = useStore((s) => s.getActiveQueueCount());
 
     useEffect(() => {
@@ -31,7 +35,7 @@ export default function Topbar() {
                 <div>
                     <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em' }}>{title}</div>
                     <div style={{ fontSize: 11, color: '#8E8E93', letterSpacing: '0.03em', textTransform: 'uppercase' }}>
-                        JJIKGO Studio — Serang
+                        JJIKGO Studio — {branch?.name || 'Main Branch'}
                     </div>
                 </div>
             </div>
@@ -45,6 +49,26 @@ export default function Topbar() {
                     </div>
                     <div style={{ fontSize: 11, color: '#8E8E93' }}>{formatDate(time)}</div>
                 </div>
+
+                {/* Shift Info */}
+                <button
+                    onClick={() => setIsShiftOpen(true)}
+                    style={{
+                        background: 'white',
+                        border: '1.5px solid #E5E5EA',
+                        borderRadius: 10,
+                        padding: '8px 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        fontWeight: 600,
+                    }}
+                >
+                    <DollarSign size={16} color="#FF9500" />
+                    <span>Shift</span>
+                </button>
 
                 {/* Queue badge */}
                 <div
@@ -95,10 +119,12 @@ export default function Topbar() {
                     color: 'white', fontWeight: 700, fontSize: 14,
                     flexShrink: 0,
                     cursor: 'default',
-                }} title={cashierName}>
-                    {cashierName?.[0]?.toUpperCase() || 'C'}
+                }} title={user?.full_name}>
+                    {user?.full_name?.[0]?.toUpperCase() || 'C'}
                 </div>
             </div>
+
+            <ShiftModal isOpen={isShiftOpen} onClose={() => setIsShiftOpen(false)} />
         </header>
     );
 }

@@ -47,14 +47,11 @@ export default function Sidebar() {
                 overflow: 'hidden',
                 justifyContent: collapsed ? 'center' : 'flex-start',
             }}>
-                <div style={{
-                    width: 36, height: 36, borderRadius: 10,
-                    background: 'white',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                }}>
-                    <Camera size={20} color="#111111" />
-                </div>
+                <img 
+                    src="/logo.png" 
+                    alt="Logo" 
+                    style={{ width: 36, height: 36, objectFit: 'contain' }} 
+                />
                 {!collapsed && (
                     <div>
                         <div style={{ color: 'white', fontWeight: 700, fontSize: 15, letterSpacing: '0.01em', lineHeight: 1.2 }}>JJIKGO</div>

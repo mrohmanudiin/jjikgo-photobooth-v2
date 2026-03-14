@@ -28,6 +28,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Badge } from '../components/ui/Badge';
 import { cn } from '../lib/utils';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 const hourlyRevenueData = [
     { time: '10:00', revenue: 150 },
     { time: '11:00', revenue: 300 },
@@ -124,7 +126,43 @@ function GoalProgress({ current, target, label, format = 'currency' }) {
 export function Dashboard() {
     const formatCurrency = (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value * 1000);
 
-    // Editable Targets (persisted in localStorage)
+    const [branches, setBranches] = useState([]);
+    const [selectedBranchId, setSelectedBranchId] = useState('all');
+    const [branchStats, setBranchStats] = useState(null);
+    const [loadingBranches, setLoadingBranches] = useState(true);
+
+    useEffect(() => {
+        const loadBranches = async () => {
+            try {
+                const resp = await fetch(`${API_URL}/api/branches`);
+                const data = await resp.json();
+                setBranches(data);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setLoadingBranches(false);
+            }
+        };
+        loadBranches();
+    }, []);
+
+    useEffect(() => {
+        if (selectedBranchId !== 'all') {
+            const loadStats = async () => {
+                try {
+                    const resp = await fetch(`${API_URL}/api/branches/${selectedBranchId}/stats`);
+                    const data = await resp.json();
+                    setBranchStats(data);
+                } catch (err) {
+                    console.error(err);
+                }
+            };
+            loadStats();
+        } else {
+            setBranchStats(null);
+        }
+    }, [selectedBranchId]);
+
     const [revenueTarget, setRevenueTarget] = useState(() => {
         const saved = localStorage.getItem('dashboard_revenue_target');
         return saved ? Number(saved) : 15000000;
@@ -150,15 +188,26 @@ export function Dashboard() {
         setTempSession(sessionTarget);
         setEditingTargets(false);
     };
-
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Overview</h2>
-                    <p className="text-muted-foreground mt-1">Real-time studio performance and operational metrics.</p>
+                    <h2 className="text-3xl font-bold tracking-tight">
+                        {selectedBranchId === 'all' ? 'Grand Overview' : branches.find(b => b.id === parseInt(selectedBranchId))?.name}
+                    </h2>
+                    <p className="text-muted-foreground mt-1">Real-time studio performance and product analytics.</p>
                 </div>
                 <div className="flex items-center gap-4">
+                    <select 
+                        className="h-9 rounded-md border border-input bg-background px-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 outline-none"
+                        value={selectedBranchId}
+                        onChange={(e) => setSelectedBranchId(e.target.value)}
+                    >
+                        <option value="all">All Branches</option>
+                        {branches.map(b => (
+                            <option key={b.id} value={b.id}>{b.name}</option>
+                        ))}
+                    </select>
                     <LiveClock />
                     <Badge variant="outline" className="h-8 px-3 border-emerald-500/20 bg-emerald-500/10 text-emerald-500 font-medium shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2 animate-pulse" />
@@ -167,13 +216,55 @@ export function Dashboard() {
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <StatCard title="Today's Revenue" value="Rp 12.45M" subtext="from yesterday" icon={CircleDollarSign} trend={12.5} />
-                <StatCard title="Total Sessions" value="415" subtext="from yesterday" icon={Camera} trend={8.2} />
                 <StatCard title="Total Customers" value="1,245" subtext="avg 3/session" icon={Users} />
-                <StatCard title="Print Requests" value="340" subtext="12 pending" icon={Printer} />
-                <StatCard title="Active Booths" value="3/4" subtext="Booth 2 offline" icon={MonitorPlay} />
-                <StatCard title="Waiting Queue" value="24" subtext="~45m est wait" icon={Clock} />
+                
+                <Card className="hover:shadow-md transition-shadow">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4 text-emerald-500" />
+                            Best Selling Products
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2 mt-2">
+                            {[
+                                { name: 'Elevator Theme', qty: 142 },
+                                { name: 'Standard Package', qty: 98 },
+                                { name: 'Extra Prints', qty: 64 },
+                            ].map((p, i) => (
+                                <div key={i} className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground truncate mr-2">{p.name}</span>
+                                    <span className="font-bold">{p.qty}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="hover:shadow-md transition-shadow">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-rose-500" />
+                            Least Selling Products
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2 mt-2">
+                            {[
+                                { name: 'Vintage Theme', qty: 12 },
+                                { name: 'Keychain Add-on', qty: 8 },
+                                { name: 'Card Holder', qty: 3 },
+                            ].map((p, i) => (
+                                <div key={i} className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground truncate mr-2">{p.name}</span>
+                                    <span className="font-bold">{p.qty}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
 
             <div className="grid gap-4 md:grid-cols-7">
@@ -303,152 +394,9 @@ export function Dashboard() {
                         </CardContent>
                     </Card>
 
-                    {/* Smart Alerts */}
-                    <Card className="flex-1">
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <AlertTriangle className="h-5 w-5 text-amber-500" />
-                                Smart Alerts
-                                <Badge variant="destructive" className="ml-auto text-[10px] h-5">2</Badge>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <div className="flex items-start gap-3 text-sm p-3 rounded-md border border-red-500/20 bg-red-500/5">
-                                <XCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-                                <div>
-                                    <p className="font-semibold text-red-600 dark:text-red-400">Booth 2 Camera Disconnected</p>
-                                    <p className="text-muted-foreground text-xs mt-0.5">Connection lost 15 minutes ago.</p>
-                                </div>
-                            </div>
-                            <div className="flex items-start gap-3 text-sm p-3 rounded-md border border-amber-500/20 bg-amber-500/5">
-                                <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                                <div>
-                                    <p className="font-semibold text-amber-600 dark:text-amber-400">Printer Ink Low — Booth 1</p>
-                                    <p className="text-muted-foreground text-xs mt-0.5">Estimated 20 prints remaining.</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
                 </div>
             </div>
 
-            {/* Quick Actions + System Health */}
-            <div className="grid gap-4 md:grid-cols-4">
-                <Card className="col-span-1">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Quick Actions</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-2">
-                        <Button variant="outline" className="h-auto py-3 flex flex-col items-center gap-1.5 text-xs" onClick={() => alert('New Transaction')}>
-                            <CircleDollarSign className="h-5 w-5 text-primary" />
-                            New Txn
-                        </Button>
-                        <Button variant="outline" className="h-auto py-3 flex flex-col items-center gap-1.5 text-xs" onClick={() => alert('Add to Queue')}>
-                            <UserPlus className="h-5 w-5 text-emerald-500" />
-                            Add Queue
-                        </Button>
-                        <Button variant="outline" className="h-auto py-3 flex flex-col items-center gap-1.5 text-xs" onClick={() => alert('Print QR')}>
-                            <QrCode className="h-5 w-5 text-violet-500" />
-                            Print QR
-                        </Button>
-                        <Button variant="outline" className="h-auto py-3 flex flex-col items-center gap-1.5 text-xs" onClick={() => alert('End Shift')}>
-                            <Clock className="h-5 w-5 text-amber-500" />
-                            End Shift
-                        </Button>
-                    </CardContent>
-                </Card>
-
-                <Card className="col-span-1">
-                    <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <Activity className="h-5 w-5 text-emerald-500" />
-                                System Health
-                            </CardTitle>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2"><Wifi className="h-4 w-4 text-emerald-500" /> Network</div>
-                            <Badge variant="outline" className="border-emerald-500/20 text-emerald-500 bg-emerald-500/10 text-[10px]">Online</Badge>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2"><Server className="h-4 w-4 text-emerald-500" /> Drive Sync</div>
-                            <Badge variant="outline" className="border-emerald-500/20 text-emerald-500 bg-emerald-500/10 text-[10px]">Synced</Badge>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2"><Printer className="h-4 w-4 text-amber-500" /> Print Queue</div>
-                            <Badge variant="outline" className="border-amber-500/20 text-amber-500 bg-amber-500/10 text-[10px]">12 Pending</Badge>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Staff Activity */}
-                <Card className="col-span-2">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Staff On Duty</CardTitle>
-                        <CardDescription>3 staff members currently active</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-3">
-                            {[
-                                { name: 'Diana Staff', role: 'Studio Guard', task: 'Assisting Booth 1', time: 'Just now', color: 'bg-emerald-500' },
-                                { name: 'Budi Cashier', role: 'Cashier', task: 'Processing #INV-109', time: '2m ago', color: 'bg-blue-500' },
-                                { name: 'Ayu Staff', role: 'Studio Guard', task: 'Uploading Session #S-504', time: '5m ago', color: 'bg-violet-500' }
-                            ].map((staff, i) => (
-                                <div key={i} className="flex items-center justify-between text-sm py-2 border-b last:border-0 last:pb-0">
-                                    <div className="flex items-center gap-3">
-                                        <div className="relative">
-                                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-xs text-primary">
-                                                {staff.name.charAt(0)}
-                                            </div>
-                                            <div className={cn("absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card", staff.color)} />
-                                        </div>
-                                        <div>
-                                            <p className="font-medium">{staff.name}</p>
-                                            <p className="text-xs text-muted-foreground">{staff.role}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-foreground text-xs">{staff.task}</p>
-                                        <p className="text-[10px] text-muted-foreground">{staff.time}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Activity Log */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Recent Activity Log</CardTitle>
-                    <CardDescription>Latest system events and transactions</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-3">
-                        {[
-                            { icon: CircleDollarSign, title: 'New Payment', desc: 'Rp 35,000 via QRIS (INV-001)', time: '10:45 AM', color: 'text-emerald-500 bg-emerald-500/10' },
-                            { icon: Printer, title: 'Print Completed', desc: 'Queue A021 — 4x6 Standard', time: '10:42 AM', color: 'text-blue-500 bg-blue-500/10' },
-                            { icon: Camera, title: 'Session Started', desc: 'Booth 1 — Elevator Theme — 3 pax', time: '10:40 AM', color: 'text-violet-500 bg-violet-500/10' },
-                            { icon: UserPlus, title: 'Customer Queued', desc: 'Queue A022 — Siti Rahma (4 pax)', time: '10:38 AM', color: 'text-amber-500 bg-amber-500/10' },
-                            { icon: CheckCircle2, title: 'Session Completed', desc: 'Booth 3 — Supermarket Theme — 5 pax', time: '10:35 AM', color: 'text-emerald-500 bg-emerald-500/10' },
-                        ].map((log, i) => (
-                            <div key={i} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                                <div className={cn("h-8 w-8 rounded-full flex items-center justify-center shrink-0", log.color)}>
-                                    <log.icon className="h-4 w-4" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium">{log.title}</p>
-                                    <p className="text-xs text-muted-foreground truncate">{log.desc}</p>
-                                </div>
-                                <time className="text-xs text-muted-foreground whitespace-nowrap">{log.time}</time>
-                            </div>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
         </div>
     );
 }

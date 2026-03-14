@@ -236,9 +236,7 @@ function SessionPanel({ activeQueue, theme, onAction, busy }) {
 }
 
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
-export default function StaffDashboard({ theme, onChangeBooth }) {
-    const [queueData, setQueueData] = useState({});
-    const [loading, setLoading] = useState(true);
+export default function StaffDashboard({ theme, queueData, loading, refresh, onChangeBooth }) {
     const [busy, setBusy] = useState(null);  // 'call'|'start'|'finish'|'print'
     const [toast, setToast] = useState('');
     const toastTimer = useRef(null);
@@ -253,33 +251,6 @@ export default function StaffDashboard({ theme, onChangeBooth }) {
 
     // Waiting queues
     const waitingQueues = myQueues.filter(q => q.status?.toLowerCase() === 'waiting');
-
-    // ── Fetch ──────────────────────────────────────────────────────────────────
-    const refresh = useCallback(async () => {
-        try {
-            const data = await fetchQueue();
-            setQueueData(data);
-        } catch (e) {
-            console.error('Fetch queue error:', e);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        refresh();
-
-        // Polling every 5s as fallback
-        const intervalId = setInterval(refresh, 5000);
-
-        // Real-time via socket
-        socket.on('queueUpdated', refresh);
-
-        return () => {
-            clearInterval(intervalId);
-            socket.off('queueUpdated', refresh);
-        };
-    }, [refresh]);
 
     // ── Toast helper ───────────────────────────────────────────────────────────
     const showToast = (msg) => {
@@ -330,7 +301,9 @@ export default function StaffDashboard({ theme, onChangeBooth }) {
 
                 {/* Topbar */}
                 <header className="topbar">
-                    <div className="topbar-brand">JJIKGO</div>
+                    <div className="topbar-brand">
+                        <img src="/logo.png" alt="JJIKGO" style={{ height: 28, width: 'auto' }} />
+                    </div>
                     <div className="topbar-divider" />
                     <div className="topbar-booth">
                         <div className="topbar-booth-dot" />

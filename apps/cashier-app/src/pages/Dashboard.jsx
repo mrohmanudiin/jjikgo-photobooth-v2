@@ -181,11 +181,10 @@ export default function Dashboard() {
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(themes.length, 5)}, 1fr)`, gap: 1, background: '#F2F2F7' }}>
                         {themes.map((theme, idx) => {
-                            // Fix: Only count 'waiting', 'called', 'in_session', 'WAITING_SHOOT', 'SHOOTING'
-                            // Do not count 'print_requested', 'printing', 'done', 'DONE'
-                            const IN_BOOTH_STATUSES = ['waiting', 'called', 'in_session', 'WAITING_SHOOT', 'SHOOTING'];
+                            // Only count live booth activity statuses
+                            const IN_BOOTH_STATUSES = ['waiting', 'called', 'in_session'];
                             const count = transactions.filter(tx =>
-                                tx.theme_id === theme.id && IN_BOOTH_STATUSES.includes(tx.order_status)
+                                tx.theme_id === theme.id && IN_BOOTH_STATUSES.includes(tx.order_status?.toLowerCase())
                             ).length;
 
                             const themeColor = theme.color || FALLBACK_COLORS[idx % FALLBACK_COLORS.length];

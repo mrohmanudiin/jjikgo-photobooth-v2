@@ -14,13 +14,6 @@ export const formatDateTime = (isoString) => {
 
 export const getStatusLabel = (status) => {
     const map = {
-        // Cashier-app statuses (uppercase)
-        WAITING_SHOOT: 'Waiting',
-        SHOOTING: 'Shooting',
-        EDITING: 'Editing',
-        PRINTING: 'Printing',
-        DONE: 'Done',
-        // Backend / staff-app statuses (lowercase)
         waiting: 'Waiting',
         called: 'Called',
         in_session: 'In Session',
@@ -28,18 +21,11 @@ export const getStatusLabel = (status) => {
         printing: 'Printing',
         done: 'Done',
     };
-    return map[status] || status;
+    return map[status?.toLowerCase()] || status;
 };
 
 export const getStatusBadgeClass = (status) => {
     const map = {
-        // Cashier-app statuses (uppercase)
-        WAITING_SHOOT: 'badge-waiting',
-        SHOOTING: 'badge-shooting',
-        EDITING: 'badge-editing',
-        PRINTING: 'badge-printing',
-        DONE: 'badge-done',
-        // Backend / staff-app statuses (lowercase)
         waiting: 'badge-waiting',
         called: 'badge-shooting',
         in_session: 'badge-shooting',
@@ -47,5 +33,5 @@ export const getStatusBadgeClass = (status) => {
         printing: 'badge-printing',
         done: 'badge-done',
     };
-    return map[status] || 'badge-waiting';
+    return map[status?.toLowerCase()] || 'badge-waiting';
 };
