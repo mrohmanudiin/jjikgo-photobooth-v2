@@ -16,7 +16,7 @@ const NAV = [
 export default function Sidebar() {
     const [collapsed, setCollapsed] = useState(false);
     const logout = useStore((s) => s.logout);
-    const cashier = useStore((s) => s.cashierName);
+    const cashier = useStore((s) => s.user?.full_name || s.user?.username || 'Cashier');
     const navigate = useNavigate();
     const { alerts } = usePrintAlerts();
     const printCount = alerts.length;

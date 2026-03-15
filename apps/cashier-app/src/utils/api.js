@@ -8,9 +8,38 @@ export const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    withCredentials: true,
 });
 
-export const socket = io(API_URL);
+// Interceptor to inject Token from Zustand store (fallback if cookies fail)
+api.interceptors.request.use((config) => {
+    try {
+        const storeStr = localStorage.getItem('jjikgo-store');
+        if (storeStr) {
+            const { state } = JSON.parse(storeStr);
+            if (state?.user?.token) {
+                config.headers.Authorization = `Bearer ${state.user.token}`;
+            }
+        }
+    } catch (e) { }
+    return config;
+});
+
+// Response interceptor to handle 401 Unauthorized
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            localStorage.removeItem('jjikgo-store');
+            window.location.reload();
+        }
+        return Promise.reject(error);
+    }
+);
+
+export const socket = io(API_URL, {
+    withCredentials: true,
+});
 
 // Theme helpers
 export const fetchThemes = async () => {

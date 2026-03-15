@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const themeController = require('../controllers/themeController');
+const { authenticate, requireRole, branchScope } = require('../middleware/auth');
 
-router.get('/', themeController.getThemes);
+// Theme viewing (branch scoped for non-admin)
+router.get('/', authenticate, branchScope, themeController.getThemes);
 
 module.exports = router;

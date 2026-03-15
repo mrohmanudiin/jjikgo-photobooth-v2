@@ -1,47 +1,77 @@
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const { Server } = require('socket.io');
-require('dotenv').config();
+const env = require('./config/env');
+const { setupSocket } = require('./socket');
+const { errorHandler } = require('./middleware/error');
 
 const app = express();
 const server = http.createServer(app);
+// ── Dynamic CORS origin (allows any localhost in dev) ──
+const corsOriginFn = (origin, callback) => {
+    // Allow requests with no origin (curl, mobile apps, Postman)
+    if (!origin) return callback(null, true);
+    // Allow any localhost/127.0.0.1 port in development
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
+    // Allow explicit production origins
+    if (env.FRONTEND_URLS && env.FRONTEND_URLS.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS blocked: ${origin}`));
+};
+
 const io = new Server(server, {
     cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
+        origin: corsOriginFn,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+        credentials: true,
     }
 });
 
-app.use(cors());
+// ── Middleware ──────────────────────────────────────────
+app.use(cors({
+    origin: corsOriginFn,
+    credentials: true,
+}));
 app.use(express.json());
+app.use(cookieParser());
 
+// Make io available to controllers
 app.set('io', io);
 
-const setupSockets = require('./socket');
-setupSockets(io);
+// ── Socket.io ──────────────────────────────────────────
+setupSocket(io);
 
-const themeRoutes = require('./routes/themes');
+// ── Routes ─────────────────────────────────────────────
+const authRoutes = require('./routes/auth');
+const branchRoutes = require('./routes/branches');
 const transactionRoutes = require('./routes/transactions');
 const queueRoutes = require('./routes/queue');
+const themeRoutes = require('./routes/themes');
 const studioRoutes = require('./routes/studio');
-const branchRoutes = require('./routes/branches');
 const shiftRoutes = require('./routes/shifts');
-const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
 
-app.use('/api/themes', themeRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/branches', branchRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/queue', queueRoutes);
+app.use('/api/themes', themeRoutes);
 app.use('/api/studio', studioRoutes);
-app.use('/api/branches', branchRoutes);
 app.use('/api/shifts', shiftRoutes);
-app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 
+// ── Health check ───────────────────────────────────────
 app.get('/', (req, res) => {
-    res.send({ status: 'Photobooth API is running' });
+    res.send({ status: 'Jjikgo Photobooth API is running ✨', version: '2.0.0' });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+// ── Error handler ──────────────────────────────────────
+app.use(errorHandler);
+
+// ── Start ──────────────────────────────────────────────
+server.listen(env.PORT, () => {
+    console.log(`🚀 Server is running on port ${env.PORT}`);
+    console.log(`📡 Socket.io ready`);
+    console.log(`🔗 Allowed origins: ${env.FRONTEND_URLS.join(', ')}`);
 });

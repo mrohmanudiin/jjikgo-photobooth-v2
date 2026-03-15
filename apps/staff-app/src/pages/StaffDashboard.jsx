@@ -35,58 +35,55 @@ function Toast({ message }) {
     return <div className="toast">{message}</div>;
 }
 
-// ─── Queue Card ────────────────────────────────────────────────────────────────
+// ─── Queue Card Component ───────────────────────────────────────────────────
 function QueueCard({ queue, theme, isActive }) {
-    const sc = getStatusColor(queue.status);
     const isCalled = queue.status === 'called';
+    
+    // Custom colors for the badge based on status
+    const getSc = (status) => {
+        switch(status.toLowerCase()) {
+            case 'waiting': return { bg: 'rgba(255, 176, 0, 0.1)', text: '#FFB000' };
+            case 'called': return { bg: 'rgba(0, 209, 255, 0.1)', text: '#00D1FF' };
+            case 'in_session': return { bg: 'rgba(0, 255, 148, 0.1)', text: '#00FF94' };
+            default: return { bg: 'rgba(255,255,255,0.05)', text: '#fff' };
+        }
+    };
+    const sc = getSc(queue.status);
 
     return (
-        <div
-            className={`queue-card${isCalled ? ' queue-card-called' : ''}`}
-            style={{
-                borderColor: isActive ? 'var(--accent)' : (isCalled ? undefined : 'var(--border)'),
-                background: isActive ? 'var(--accent-dim)' : (isCalled ? 'var(--called-bg)' : undefined),
+        <div 
+            className="queue-card animate-slideUp"
+            style={{ 
+                borderColor: isActive ? 'var(--accent-cyan)' : undefined,
+                background: isActive ? 'rgba(0, 245, 255, 0.05)' : undefined,
+                boxShadow: isActive ? '0 0 20px rgba(0, 245, 255, 0.1)' : undefined
             }}
         >
-            {/* Queue number badge */}
-            <div
-                className="queue-number-badge"
-                style={{ background: sc.bg, color: sc.text }}
-            >
+            <div className="queue-number-badge" style={{ background: sc.bg, color: sc.text, border: `1px solid ${sc.text}33` }}>
                 {theme.prefix || 'T'}{String(queue.queue_number).padStart(2, '0')}
             </div>
 
-            {/* Body */}
-            <div className="queue-card-body">
+            <div style={{ flex: 1 }}>
                 <div className="queue-customer-name">
                     {queue.transaction?.customer_name || 'Walk-in'}
                 </div>
                 <div className="queue-meta">
-                    <span className="queue-meta-tag">
-                        👥&nbsp;{queue.transaction?.people_count || 1} pax
-                    </span>
-                    <span
-                        className="queue-status-pill"
-                        style={{ background: sc.bg, color: sc.text }}
-                    >
-                        <span style={{
-                            width: 6, height: 6, borderRadius: '50%',
-                            background: sc.dot, display: 'inline-block', flexShrink: 0
-                        }} />
-                        {getStatusLabel(queue.status)}
-                    </span>
+                    <span className="queue-meta-tag">👥 {queue.transaction?.people_count || 1} pax</span>
+                    <div className="queue-status-pill" style={{ background: sc.bg, color: sc.text }}>
+                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: sc.text }} />
+                         {getStatusLabel(queue.status)}
+                    </div>
                 </div>
             </div>
 
-            {/* Waiting time */}
-            <div className="queue-wait-time">
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-m)', textAlign: 'right' }}>
                 {formatWaitingTime(queue.created_at)}
             </div>
         </div>
     );
 }
 
-// ─── Session Status Flow ───────────────────────────────────────────────────────
+// ─── Status Flow Component ───────────────────────────────────────────────────
 function StatusFlow({ currentStatus }) {
     const currentIdx = getFlowIndex(currentStatus);
     return (
@@ -95,38 +92,33 @@ function StatusFlow({ currentStatus }) {
                 const isDone = idx < currentIdx;
                 const isActive = idx === currentIdx;
                 return (
-                    <div key={step.key} className="status-flow-step">
+                    <React.Fragment key={step.key}>
                         <div className="status-flow-node">
                             <div className={`status-flow-dot ${isActive ? 'active' : isDone ? 'done' : ''}`}>
                                 {step.icon}
                             </div>
-                            <span className={`status-flow-label ${isActive ? 'active' : isDone ? 'done' : ''}`}>
-                                {step.label}
-                            </span>
                         </div>
                         {idx < STATUS_FLOW.length - 1 && (
                             <div className={`status-flow-line ${isDone ? 'done' : ''}`} />
                         )}
-                    </div>
+                    </React.Fragment>
                 );
             })}
         </div>
     );
 }
 
-// ─── Session Panel (right side) ────────────────────────────────────────────────
+// ─── Session Panel Component ──────────────────────────────────────────────────
 function SessionPanel({ activeQueue, theme, onAction, busy }) {
     if (!activeQueue) {
         return (
             <div className="session-panel">
-                <div className="section-header">
-                    <span className="section-title">Current Session</span>
-                </div>
-                <div className="session-empty" style={{ flex: 1 }}>
-                    <div className="session-empty-icon">📷</div>
-                    <div className="session-empty-title">No active session</div>
-                    <div className="session-empty-sub">
-                        Press CALL NEXT to bring a customer in
+                <span className="section-title">Terminal Focus</span>
+                <div className="panel-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 24 }}>
+                    <div style={{ fontSize: 64, filter: 'grayscale(1) opacity(0.2)' }}>📸</div>
+                    <div>
+                        <h3 style={{ fontSize: 20, marginBottom: 8 }}>Ready for Transfer</h3>
+                        <p style={{ color: 'var(--text-s)', fontSize: 14 }}>Call the next customer from the queue<br/>to begin a new session.</p>
                     </div>
                 </div>
             </div>
@@ -135,131 +127,72 @@ function SessionPanel({ activeQueue, theme, onAction, busy }) {
 
     const status = activeQueue.status?.toLowerCase();
     const customerName = activeQueue.transaction?.customer_name || 'Walk-in';
-    const peopleCount = activeQueue.transaction?.people_count || 1;
     const queueLabel = `${theme.prefix || 'T'}${String(activeQueue.queue_number).padStart(2, '0')}`;
-
-    // Which buttons to show
-    const canStart = status === 'called';
-    const canPrint = status === 'in_session';
 
     return (
         <div className="session-panel">
-            <div className="section-header">
-                <span className="section-title">Current Session</span>
-                <span className="queue-count-badge">Active</span>
-            </div>
-
-            {/* Customer Card */}
-            <div className="session-customer-card animate-scaleIn">
+            <span className="section-title">Active Monitoring</span>
+            
+            <div className="session-customer-card animate-slideUp">
                 <div className="session-queue-number">{queueLabel}</div>
-
-                <div className="session-customer-row">
-                    <div className="session-avatar">
-                        {customerName[0]?.toUpperCase() || '?'}
-                    </div>
-                    <div>
-                        <div className="session-customer-name">{customerName}</div>
-                        <div className="session-customer-sub">
-                            {theme.name} Booth
-                        </div>
-                    </div>
-                </div>
-
+                <div className="session-customer-name">{customerName}</div>
+                
                 <div className="session-info-tags">
                     <div className="session-info-tag">
-                        <span className="session-tag-label">People</span>
-                        <span className="session-tag-value">👥 {peopleCount} pax</span>
+                        <span className="session-tag-label">Occupancy</span>
+                        <span className="session-tag-value">👥 {activeQueue.transaction?.people_count || 1} People</span>
                     </div>
                     <div className="session-info-tag">
-                        <span className="session-tag-label">Theme</span>
+                        <span className="session-tag-label">Theme Preset</span>
                         <span className="session-tag-value">🎨 {theme.name}</span>
                     </div>
-                    <div className="session-info-tag">
-                        <span className="session-tag-label">Waiting</span>
-                        <span className="session-tag-value">⏱ {formatWaitingTime(activeQueue.created_at)}</span>
+                </div>
+
+                <div style={{ marginTop: 40 }}>
+                    <span className="section-title" style={{ marginBottom: 16 }}>Session Progress</span>
+                    <StatusFlow currentStatus={status} />
+                </div>
+            </div>
+
+            <div className="panel-card" style={{ marginTop: 'auto' }}>
+                <span className="section-title">Control Interface</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {status === 'called' && (
+                        <button className="action-btn action-btn-start" disabled={!!busy} onClick={() => onAction('start')}>
+                            {busy === 'start' ? <div className="spinner" /> : '📸 START SESSION'}
+                        </button>
+                    )}
+                    {status === 'in_session' && (
+                        <button className="action-btn action-btn-print" disabled={!!busy} onClick={() => onAction('print')}>
+                            {busy === 'print' ? <div className="spinner" /> : '🖨️ TRANSFER TO PRINT'}
+                        </button>
+                    )}
+                    
+                    <div style={{ fontSize: 12, color: 'var(--text-m)', textAlign: 'center', fontWeight: 600 }}>
+                        {status === 'called' ? 'CUSTOMER ARRIVED? TRIGGER SESSION START' : 'SESSION COMPLETE? SEND TO PRINT STATION'}
                     </div>
                 </div>
-            </div>
-
-            {/* Status Flow */}
-            <div>
-                <div className="section-header" style={{ marginBottom: 14 }}>
-                    <span className="section-title">Status Flow</span>
-                </div>
-                <StatusFlow currentStatus={status} />
-            </div>
-
-            <hr className="sep" />
-
-            {/* Actions */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 70 }}>
-
-                {/* START SESSION */}
-                {canStart && (
-                    <button
-                        className="action-btn action-btn-start animate-fadeUp"
-                        disabled={busy}
-                        onClick={() => onAction('start')}
-                    >
-                        {busy === 'start' ? <><div className="spinner" /> Starting…</> : <>📸 START SESSION</>}
-                    </button>
-                )}
-
-
-
-                {/* SEND TO PRINT */}
-                {canPrint && (
-                    <button
-                        className="action-btn action-btn-print animate-fadeUp"
-                        disabled={busy}
-                        onClick={() => onAction('print')}
-                    >
-                        {busy === 'print'
-                            ? <><div className="spinner" /> Sending…</>
-                            : <>🖨️ SEND TO PRINT</>
-                        }
-                    </button>
-                )}
-
-            </div>
-
-            {/* Status hint */}
-            <div style={{
-                fontSize: 12, color: 'var(--text-muted)', textAlign: 'center',
-                fontWeight: 500, lineHeight: 1.6, marginTop: 10
-            }}>
-                {status === 'called' && '▶ Press START SESSION when the customer is ready to shoot'}
-                {status === 'in_session' && '▶ Press SEND TO PRINT when the customer finishes their session'}
             </div>
         </div>
     );
 }
 
-// ─── Main Dashboard ────────────────────────────────────────────────────────────
+// ─── Main Staff Dashboard ──────────────────────────────────────────────────────
 export default function StaffDashboard({ theme, queueData, loading, refresh, onChangeBooth }) {
-    const [busy, setBusy] = useState(null);  // 'call'|'start'|'finish'|'print'
+    const [busy, setBusy] = useState(null);
     const [toast, setToast] = useState('');
     const toastTimer = useRef(null);
 
-    // Derived: queues for this theme
     const myQueues = queueData[theme.name] || [];
-
-    // Active queue = first called or in_session
-    const activeQueue = myQueues.find(q =>
-        ['called', 'in_session'].includes(q.status?.toLowerCase())
-    ) || null;
-
-    // Waiting queues
+    const activeQueue = myQueues.find(q => ['called', 'in_session'].includes(q.status?.toLowerCase())) || null;
     const waitingQueues = myQueues.filter(q => q.status?.toLowerCase() === 'waiting');
 
-    // ── Toast helper ───────────────────────────────────────────────────────────
     const showToast = (msg) => {
         setToast(msg);
         clearTimeout(toastTimer.current);
         toastTimer.current = setTimeout(() => setToast(''), 3000);
     };
 
-    // ── Call Next ──────────────────────────────────────────────────────────────
     const handleCallNext = async () => {
         if (busy || waitingQueues.length === 0) return;
         setBusy('call');
@@ -274,7 +207,6 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
         }
     };
 
-    // ── Session Actions ────────────────────────────────────────────────────────
     const handleAction = async (action) => {
         if (!activeQueue || busy) return;
         setBusy(action);
@@ -284,162 +216,87 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
                 showToast('📸 Session started!');
             } else if (action === 'print') {
                 await sendToPrint(activeQueue.id);
-                showToast('🖨️ Session sent to cashier for printing!');
+                showToast('🖨️ Transferred to print station!');
             }
             await refresh();
         } catch (e) {
-            showToast(`❌ ${e?.response?.data?.error || 'Action failed'}`);
+            showToast(`❌ Action failed`);
         } finally {
             setBusy(null);
         }
     };
 
-    // ── Render ─────────────────────────────────────────────────────────────────
     return (
-        <>
+        <div className="animate-fadeIn">
             <div className="app-layout">
-
-                {/* Topbar */}
                 <header className="topbar">
                     <div className="topbar-brand">
-                        <img src="/logo.png" alt="JJIKGO" style={{ height: 28, width: 'auto' }} />
+                        <img src="/logo.png" alt="JJIKGO" style={{ height: 32, width: 'auto', filter: 'brightness(0) invert(1)' }} />
                     </div>
                     <div className="topbar-divider" />
                     <div className="topbar-booth">
                         <div className="topbar-booth-dot" />
-                        <span className="topbar-booth-name">{theme.name} Booth</span>
+                        <span className="topbar-booth-name">{theme.name} STATION</span>
                     </div>
                     <div className="topbar-spacer" />
-                    <div className="topbar-live">
-                        <div className="topbar-live-dot" />
-                        LIVE
-                    </div>
+                    <div className="topbar-live"><div className="topbar-booth-dot" /> SIGNAL: STABLE</div>
                     <TopbarClock />
-                    <button className="topbar-change-btn" onClick={onChangeBooth}>
-                        Change Booth
-                    </button>
+                    <button className="topbar-change-btn" onClick={onChangeBooth}>SWITCH STATION</button>
                 </header>
 
-                {/* Left: Queue Panel */}
                 <main className="queue-panel">
-
-                    {/* Stats row */}
-                    <div style={{ display: 'flex', gap: 12 }}>
-                        {[
-                            { label: 'Waiting', val: waitingQueues.length, color: 'var(--waiting-fg)' },
-                            { label: 'In Session', val: activeQueue ? 1 : 0, color: 'var(--session-fg)' },
-                            { label: 'Total Today', val: myQueues.length, color: 'var(--accent)' },
-                        ].map(stat => (
-                            <div key={stat.label} style={{
-                                flex: 1,
-                                background: 'var(--bg-card)',
-                                border: '1px solid var(--border)',
-                                borderRadius: 'var(--radius-sm)',
-                                padding: '16px 18px',
-                            }}>
-                                <div style={{
-                                    fontSize: 30, fontWeight: 900,
-                                    color: stat.color, letterSpacing: '-0.04em', lineHeight: 1,
-                                }}>
-                                    {stat.val}
-                                </div>
-                                <div style={{
-                                    fontSize: 11, fontWeight: 700,
-                                    color: 'var(--text-muted)', textTransform: 'uppercase',
-                                    letterSpacing: '0.08em', marginTop: 4
-                                }}>
-                                    {stat.label}
-                                </div>
-                            </div>
-                        ))}
+                    <div className="stats-grid">
+                        <div className="stat-card">
+                            <span className="stat-value" style={{ color: 'var(--s-waiting)' }}>{waitingQueues.length}</span>
+                            <span className="stat-label">Pending</span>
+                        </div>
+                        <div className="stat-card">
+                            <span className="stat-value" style={{ color: 'var(--s-session)' }}>{activeQueue ? 1 : 0}</span>
+                            <span className="stat-label">Active</span>
+                        </div>
+                        <div className="stat-card">
+                            <span className="stat-value" style={{ color: 'var(--accent-indigo)' }}>{myQueues.length}</span>
+                            <span className="stat-label">Total Cycle</span>
+                        </div>
                     </div>
 
-                    {/* CALL NEXT button */}
-                    <div>
-                        <div className="section-header" style={{ marginBottom: 12 }}>
-                            <span className="section-title">Queue Control</span>
-                            {waitingQueues.length > 0 && (
-                                <span className="queue-count-badge">{waitingQueues.length} waiting</span>
-                            )}
-                        </div>
-                        <button
-                            id="call-next-btn"
-                            className="call-next-btn"
-                            disabled={!!busy || waitingQueues.length === 0 || !!activeQueue}
-                            onClick={handleCallNext}
-                        >
-                            {busy === 'call'
-                                ? <><div className="spinner" /> Calling…</>
-                                : <>
-                                    <span className="call-next-icon">📣</span>
-                                    CALL NEXT
-                                </>
-                            }
+                    <div className="panel-card">
+                        <span className="section-title">Command Center</span>
+                        <button className="call-next-btn" disabled={!!busy || waitingQueues.length === 0 || !!activeQueue} onClick={handleCallNext}>
+                            {busy === 'call' ? <div className="spinner" /> : '📣 INITIATE NEXT CALL'}
                         </button>
                         {activeQueue && (
-                            <div style={{
-                                marginTop: 8, fontSize: 12, color: 'var(--text-muted)',
-                                textAlign: 'center', fontWeight: 500
-                            }}>
-                                Finish the current session before calling next
+                            <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-m)', textAlign: 'center', fontWeight: 700 }}>
+                                TERMINAL OCCUPIED. COMPLETE CURRENT SESSION.
                             </div>
                         )}
                     </div>
 
-                    {/* Waiting queue list */}
-                    <div>
-                        <div className="section-header" style={{ marginBottom: 12 }}>
-                            <span className="section-title">Waiting Queue</span>
-                        </div>
-
+                    <div className="panel-card" style={{ flex: 1, minHeight: 400 }}>
+                        <span className="section-title">Queue Stream</span>
                         {loading ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                {[1, 2, 3].map(i => (
-                                    <div key={i} className="skeleton" style={{ height: 82, animationDelay: `${i * 0.1}s` }} />
-                                ))}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 100, borderRadius: 20 }} />)}
                             </div>
                         ) : waitingQueues.length === 0 ? (
-                            <div className="queue-empty">
-                                <div className="queue-empty-icon">🎉</div>
-                                <div className="queue-empty-text">Queue is empty</div>
+                            <div style={{ padding: '60px 0', textAlign: 'center', opacity: 0.5 }}>
+                                <div style={{ fontSize: 40, marginBottom: 16 }}>🌈</div>
+                                <div style={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Stream Empty</div>
                             </div>
                         ) : (
-                            <div className="queue-list">
-                                {waitingQueues.map((q, idx) => (
-                                    <div key={q.id} style={{ animationDelay: `${idx * 0.05}s` }}>
-                                        <QueueCard queue={q} theme={theme} isActive={false} />
-                                    </div>
-                                ))}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                {waitingQueues.map(q => <QueueCard key={q.id} queue={q} theme={theme} />)}
                             </div>
                         )}
                     </div>
-
-                    {/* Called/Active queue (shown in queue list too) */}
-                    {activeQueue && (
-                        <div>
-                            <div className="section-header" style={{ marginBottom: 12 }}>
-                                <span className="section-title">Currently Active</span>
-                            </div>
-                            <QueueCard queue={activeQueue} theme={theme} isActive />
-                        </div>
-                    )}
-
                 </main>
 
-                {/* Right: Session Panel */}
                 <aside>
-                    <SessionPanel
-                        activeQueue={activeQueue}
-                        theme={theme}
-                        onAction={handleAction}
-                        busy={busy}
-                    />
+                    <SessionPanel activeQueue={activeQueue} theme={theme} onAction={handleAction} busy={busy} />
                 </aside>
-
             </div>
 
-            {/* Toast */}
-            <Toast message={toast} />
-        </>
+            {toast && <div className="toast">{toast}</div>}
+        </div>
     );
 }

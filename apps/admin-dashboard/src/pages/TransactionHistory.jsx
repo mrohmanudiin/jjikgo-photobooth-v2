@@ -1,176 +1,306 @@
-import React, { useState } from 'react';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow
-} from '../components/ui/Table';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
-import { Badge } from '../components/ui/Badge';
-import { Button } from '../components/ui/Button';
-import { Search, CalendarDays, Download, CircleDollarSign, Receipt, TrendingUp, ArrowUpRight } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Search, Download, Filter, Loader2, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import axios from 'axios';
+import { useBranch } from '../contexts/BranchContext';
+import { format, subDays, startOfWeek, startOfMonth } from 'date-fns';
 
-const mockTransactions = [
-    { id: 'INV-20260308-001', name: 'Alif R.', theme: 'Elevator', price: 35000, payment: 'QRIS', status: 'Success', date: '2026-03-08 14:20', people: 2 },
-    { id: 'INV-20260308-002', name: 'Budi Santoso', theme: 'Vintage', price: 35000, payment: 'Cash', status: 'Success', date: '2026-03-08 14:25', people: 2 },
-    { id: 'INV-20260308-003', name: 'Siti Rahma', theme: 'Elevator', price: 50000, payment: 'EDC (Card)', status: 'Success', date: '2026-03-08 14:15', people: 4 },
-    { id: 'INV-20260308-004', name: 'Dian & Friends', theme: 'Supermarket', price: 100000, payment: 'QRIS', status: 'Success', date: '2026-03-08 14:10', people: 5 },
-    { id: 'INV-20260308-005', name: 'Fikri', theme: 'Self Studio', price: 150000, payment: 'QRIS', status: 'Success', date: '2026-03-08 14:30', people: 2 },
-    { id: 'INV-20260308-006', name: 'Rina Kartika', theme: 'Y2K Subway', price: 40000, payment: 'Cash', status: 'Refunded', date: '2026-03-08 13:55', people: 3 },
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+const STATUS_COLORS = {
+  waiting: 'bg-yellow-100 text-yellow-700',
+  in_progress: 'bg-blue-100 text-blue-700',
+  done: 'bg-green-100 text-green-700',
+  cancelled: 'bg-red-100 text-red-700',
+};
+
+const DATE_RANGES = [
+  { label: 'Today', value: 'today' },
+  { label: 'Yesterday', value: 'yesterday' },
+  { label: 'Last 7 Days', value: 'week' },
+  { label: 'This Month', value: 'month' },
+  { label: 'All Time', value: 'all' },
+  { label: 'Custom', value: 'custom' },
 ];
 
-function getPaymentBadge(method) {
-    const styles = {
-        'QRIS': 'border-blue-500/20 text-blue-600 bg-blue-500/10',
-        'Cash': 'border-emerald-500/20 text-emerald-600 bg-emerald-500/10',
-        'EDC (Card)': 'border-violet-500/20 text-violet-600 bg-violet-500/10',
-    };
-    return <Badge variant="outline" className={styles[method] || ''}>{method}</Badge>;
+function getDateRange(range, customFrom, customTo) {
+  const now = new Date();
+  switch (range) {
+    case 'today':
+      return { from: format(now, 'yyyy-MM-dd'), to: format(now, 'yyyy-MM-dd') };
+    case 'yesterday':
+      return { from: format(subDays(now, 1), 'yyyy-MM-dd'), to: format(subDays(now, 1), 'yyyy-MM-dd') };
+    case 'week':
+      return { from: format(subDays(now, 7), 'yyyy-MM-dd'), to: format(now, 'yyyy-MM-dd') };
+    case 'month':
+      return { from: format(startOfMonth(now), 'yyyy-MM-dd'), to: format(now, 'yyyy-MM-dd') };
+    case 'custom':
+      return { from: customFrom, to: customTo };
+    default:
+      return {};
+  }
+}
+
+function exportCSV(rows) {
+  if (!rows.length) return alert('No data to export.');
+  const headers = ['Invoice', 'Customer', 'Theme', 'Package', 'People', 'Payment', 'Total', 'Status', 'Branch', 'Date'];
+  const csv = [
+    headers.join(','),
+    ...rows.map(r => [
+      r.invoice_number,
+      `"${r.customer_name || ''}"`,
+      `"${r.theme || ''}"`,
+      `"${r.package || ''}"`,
+      r.people_count,
+      r.payment_method,
+      r.total,
+      r.status,
+      `"${r.branch?.name || ''}"`,
+      format(new Date(r.created_at), 'yyyy-MM-dd HH:mm'),
+    ].join(','))
+  ].join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `transactions_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export function TransactionHistory() {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [paymentFilter, setPaymentFilter] = useState('All');
-    const [dateRange, setDateRange] = useState('Today');
+  const { selectedBranch } = useBranch();
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [range, setRange] = useState('today');
+  const [customFrom, setCustomFrom] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [customTo, setCustomTo] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [sortKey, setSortKey] = useState('created_at');
+  const [sortDir, setSortDir] = useState('desc');
 
-    const filteredData = mockTransactions.filter(t =>
-        (paymentFilter === 'All' || t.payment === paymentFilter) &&
-        (t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.id.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+  const fetchTransactions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (selectedBranch) params.append('branch_id', selectedBranch.id);
+      const dateRange = getDateRange(range, customFrom, customTo);
+      if (dateRange.from) params.append('date_from', dateRange.from);
+      if (dateRange.to) params.append('date_to', dateRange.to);
 
-    const totalRevenue = filteredData.reduce((acc, t) => t.status === 'Success' ? acc + t.price : acc, 0);
+      const { data } = await axios.get(`${API_URL}/api/transactions?${params}`);
+      setTransactions(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedBranch, range, customFrom, customTo]);
 
-    return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Transaction History</h2>
-                    <p className="text-muted-foreground mt-1">Full ledger of all customer payments and invoices.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center border rounded-md p-1 bg-muted/50">
-                        {['Today', '7 Days', '30 Days'].map(range => (
-                            <Button key={range} variant={dateRange === range ? "secondary" : "ghost"} size="sm" className="h-8 text-xs px-3" onClick={() => setDateRange(range)}>
-                                {range}
-                            </Button>
-                        ))}
-                    </div>
-                    <Button variant="outline" size="sm" className="h-[36px]">
-                        <Download className="h-4 w-4 mr-2" /> Export
-                    </Button>
-                </div>
-            </div>
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
 
-            <div className="grid gap-4 md:grid-cols-3">
-                <Card className="hover:shadow-md transition-shadow">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Filtered Revenue</CardTitle>
-                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <CircleDollarSign className="h-4 w-4 text-primary" />
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">Rp {totalRevenue.toLocaleString('id-ID')}</div>
-                    </CardContent>
-                </Card>
-                <Card className="hover:shadow-md transition-shadow">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Transactions</CardTitle>
-                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Receipt className="h-4 w-4 text-primary" />
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{filteredData.length}</div>
-                    </CardContent>
-                </Card>
-                <Card className="hover:shadow-md transition-shadow">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Avg Ticket</CardTitle>
-                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <TrendingUp className="h-4 w-4 text-primary" />
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">Rp {filteredData.length ? Math.round(totalRevenue / filteredData.length).toLocaleString('id-ID') : 0}</div>
-                    </CardContent>
-                </Card>
-            </div>
+  useEffect(() => {
+    import('../utils/socket').then(({ socket }) => {
+      const handleUpdate = () => {
+        fetchTransactions();
+      };
+      socket.on('queueUpdated', handleUpdate);
+      socket.on('adminEvent', handleUpdate);
+      
+      return () => {
+        socket.off('queueUpdated', handleUpdate);
+        socket.off('adminEvent', handleUpdate);
+      };
+    });
+  }, [fetchTransactions]);
 
-            <Card>
-                <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b">
-                    <CardTitle>All Transactions</CardTitle>
-                    <div className="flex gap-2">
-                        <div className="relative">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <input
-                                type="text"
-                                placeholder="Search invoice or name..."
-                                className="h-9 w-full sm:w-64 rounded-md border border-input bg-background pl-9 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
-                        <select
-                            className="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                            value={paymentFilter}
-                            onChange={(e) => setPaymentFilter(e.target.value)}
-                        >
-                            <option value="All">All Payments</option>
-                            <option value="QRIS">QRIS</option>
-                            <option value="Cash">Cash</option>
-                            <option value="EDC (Card)">EDC (Card)</option>
-                        </select>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                    <Table>
-                        <TableHeader className="bg-muted/50">
-                            <TableRow>
-                                <TableHead className="font-semibold">Invoice ID</TableHead>
-                                <TableHead className="font-semibold">Date</TableHead>
-                                <TableHead className="font-semibold">Customer</TableHead>
-                                <TableHead className="font-semibold">Theme</TableHead>
-                                <TableHead className="font-semibold">Pax</TableHead>
-                                <TableHead className="font-semibold">Payment</TableHead>
-                                <TableHead className="font-semibold">Amount</TableHead>
-                                <TableHead className="font-semibold">Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredData.map((t) => (
-                                <TableRow key={t.id} className="hover:bg-muted/50 transition-colors">
-                                    <TableCell className="font-medium text-primary">{t.id}</TableCell>
-                                    <TableCell className="text-muted-foreground text-xs">{t.date}</TableCell>
-                                    <TableCell className="font-medium">{t.name}</TableCell>
-                                    <TableCell>{t.theme}</TableCell>
-                                    <TableCell>{t.people}</TableCell>
-                                    <TableCell>{getPaymentBadge(t.payment)}</TableCell>
-                                    <TableCell className="font-medium">Rp {t.price.toLocaleString('id-ID')}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={t.status === 'Success' ? 'success' : t.status === 'Refunded' ? 'warning' : 'destructive'} className="font-normal">
-                                            {t.status}
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {filteredData.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                                        <div className="flex flex-col items-center gap-2">
-                                            <Receipt className="h-10 w-10 opacity-30" />
-                                            <p className="font-medium">No transactions found</p>
-                                            <p className="text-xs">Try adjusting your search or filter.</p>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+  const handleDelete = async (tx) => {
+    if (!confirm(`Delete transaction ${tx.invoice_number}?`)) return;
+    try {
+      await axios.delete(`${API_URL}/api/transactions/${tx.id}`);
+      fetchTransactions();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete');
+    }
+  };
+
+  const toggleSort = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+
+  const SortIcon = ({ col }) => (
+    <span className="opacity-40">
+      {sortKey === col ? (sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />) : <ChevronDown className="h-3 w-3" />}
+    </span>
+  );
+
+  const filtered = transactions
+    .filter(t =>
+      !search ||
+      t.invoice_number?.includes(search) ||
+      t.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
+      t.theme?.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      let av = a[sortKey], bv = b[sortKey];
+      if (sortKey === 'total') { av = Number(a.total); bv = Number(b.total); }
+      if (sortKey === 'created_at') { av = new Date(a.created_at); bv = new Date(b.created_at); }
+      if (av < bv) return sortDir === 'asc' ? -1 : 1;
+      if (av > bv) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+  const totalRevenue = filtered.reduce((s, t) => s + (Number(t.total) || 0), 0);
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Transactions</h2>
+          <p className="text-muted-foreground mt-1">
+            All photobooth transactions and revenue.
+            {selectedBranch && <span className="ml-2 text-primary font-medium">— {selectedBranch.name}</span>}
+          </p>
         </div>
-    );
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => exportCSV(filtered)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border font-medium text-sm hover:bg-muted transition-colors"
+          >
+            <Download className="h-4 w-4" /> Export CSV
+          </button>
+          <button
+            onClick={fetchTransactions}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-all"
+          >
+            <Filter className="h-4 w-4" /> Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Transactions', value: filtered.length },
+          { label: 'Total Revenue', value: `Rp ${totalRevenue.toLocaleString('id-ID')}`, highlight: true },
+          { label: 'Completed', value: filtered.filter(t => t.status === 'done').length },
+          { label: 'Waiting', value: filtered.filter(t => t.status === 'waiting').length },
+        ].map(({ label, value, highlight }) => (
+          <div key={label} className="bg-card rounded-2xl border p-4">
+            <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">{label}</div>
+            <div className={`text-2xl font-black ${highlight ? 'text-primary' : ''}`}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="bg-card border rounded-2xl p-4 flex flex-wrap gap-3 items-center">
+        {/* Date range */}
+        <div className="flex gap-1 flex-wrap">
+          {DATE_RANGES.map(dr => (
+            <button
+              key={dr.value}
+              onClick={() => setRange(dr.value)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${range === dr.value ? 'bg-primary text-primary-foreground shadow' : 'bg-muted hover:bg-muted/80 text-muted-foreground'}`}
+            >
+              {dr.label}
+            </button>
+          ))}
+        </div>
+
+        {range === 'custom' && (
+          <div className="flex gap-2 items-center ml-auto">
+            <input type="date" className="h-8 px-3 rounded-xl border text-sm bg-background" value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
+            <span className="text-muted-foreground">→</span>
+            <input type="date" className="h-8 px-3 rounded-xl border text-sm bg-background" value={customTo} onChange={e => setCustomTo(e.target.value)} />
+          </div>
+        )}
+
+        {/* Search */}
+        <div className="relative ml-auto">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search invoice, customer..."
+            className="h-8 pl-8 pr-3 rounded-xl border text-xs bg-background w-52"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-card border rounded-2xl overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center items-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 text-left">Invoice</th>
+                  <th className="px-4 py-3 text-left cursor-pointer hover:text-foreground" onClick={() => toggleSort('customer_name')}>
+                    <span className="flex items-center gap-1">Customer <SortIcon col="customer_name" /></span>
+                  </th>
+                  <th className="px-4 py-3 text-left">Theme / Package</th>
+                  <th className="px-4 py-3 text-left">Branch</th>
+                  <th className="px-4 py-3 text-left">Payment</th>
+                  <th className="px-4 py-3 text-right cursor-pointer hover:text-foreground" onClick={() => toggleSort('total')}>
+                    <span className="flex items-center gap-1 justify-end">Revenue <SortIcon col="total" /></span>
+                  </th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-left cursor-pointer hover:text-foreground" onClick={() => toggleSort('created_at')}>
+                    <span className="flex items-center gap-1">Date <SortIcon col="created_at" /></span>
+                  </th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map(tx => (
+                  <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{tx.invoice_number}</td>
+                    <td className="px-4 py-3 font-medium">{tx.customer_name}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{tx.theme || 'Cafe Only'}</div>
+                      <div className="text-xs text-muted-foreground">{tx.package}</div>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{tx.branch?.name || '—'}</td>
+                    <td className="px-4 py-3 text-muted-foreground capitalize">{tx.payment_method}</td>
+                    <td className="px-4 py-3 text-right font-bold text-primary">
+                      Rp {Number(tx.total).toLocaleString('id-ID')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[tx.status] || 'bg-muted text-muted-foreground'}`}>
+                        {tx.status?.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                      {format(new Date(tx.created_at), 'dd MMM yyyy HH:mm')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => handleDelete(tx)} className="p-1.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-colors">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="text-center py-12 text-muted-foreground">
+                      No transactions found for the selected filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

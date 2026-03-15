@@ -6,9 +6,32 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 export const api = axios.create({
     baseURL: `${API_URL}/api`,
     headers: { 'Content-Type': 'application/json' },
+    withCredentials: true,
 });
 
-export const socket = io(API_URL);
+// Interceptor to inject Token from Zustand store
+api.interceptors.request.use((config) => {
+    try {
+        const storeStr = localStorage.getItem('jjikgo-staff-store');
+        if (storeStr) {
+            const { state } = JSON.parse(storeStr);
+            if (state?.user?.token) {
+                config.headers.Authorization = `Bearer ${state.user.token}`;
+            }
+        }
+    } catch (e) { }
+    return config;
+});
+
+export const socket = io(API_URL, {
+    withCredentials: true,
+});
+
+// ─── Auth helpers ──────────────────────────────────────────────────────────────
+export const login = async (username, password) => {
+    const res = await api.post('/auth/login', { username, password });
+    return res.data;
+};
 
 // ─── Theme helpers ─────────────────────────────────────────────────────────────
 export const fetchThemes = async () => {

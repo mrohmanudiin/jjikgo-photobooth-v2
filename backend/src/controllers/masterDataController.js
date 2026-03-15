@@ -1,60 +1,102 @@
-const prisma = require('../config/prisma');
+const { db } = require('../config/db');
+const { packages, addons, cafeSnacks, promos, themes } = require('../db/schema');
+const { eq } = require('drizzle-orm');
 
-const getAll = (model) => async (req, res) => {
-    try {
-        const items = await prisma[model].findMany();
-        res.json(items);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+// Map model name strings to actual Drizzle table objects
+const modelMap = {
+  package: packages,
+  addon: addons,
+  cafeSnack: cafeSnacks,
+  promo: promos,
+  theme: themes,
 };
 
-const createItem = (model) => async (req, res) => {
-    try {
-        const item = await prisma[model].create({ data: req.body });
-        res.status(201).json(item);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+/**
+ * GET /api/studio/:model
+ * Access: ADMIN
+ */
+const getAll = (modelName) => async (req, res) => {
+  try {
+    const table = modelMap[modelName];
+    if (!table) return res.status(400).json({ error: `Unknown model: ${modelName}` });
+
+    const items = await db.select().from(table);
+    res.json(items);
+  } catch (error) {
+    console.error(`getAll ${modelName} error:`, error);
+    res.status(500).json({ error: error.message });
+  }
 };
 
-const updateItem = (model) => async (req, res) => {
+/**
+ * POST /api/studio/:model
+ * Access: ADMIN
+ */
+const createItem = (modelName) => async (req, res) => {
+  try {
+    const table = modelMap[modelName];
+    if (!table) return res.status(400).json({ error: `Unknown model: ${modelName}` });
+
+    const [item] = await db.insert(table).values(req.body).returning();
+    res.status(201).json(item);
+  } catch (error) {
+    console.error(`createItem ${modelName} error:`, error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * PUT /api/studio/:model/:id
+ * Access: ADMIN
+ */
+const updateItem = (modelName) => async (req, res) => {
+  try {
+    const table = modelMap[modelName];
+    if (!table) return res.status(400).json({ error: `Unknown model: ${modelName}` });
+
     const { id } = req.params;
-    try {
-        const item = await prisma[model].update({
-            where: { id: parseInt(id) },
-            data: req.body,
-        });
-        res.json(item);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    const [item] = await db.update(table)
+      .set(req.body)
+      .where(eq(table.id, parseInt(id)))
+      .returning();
+
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+    res.json(item);
+  } catch (error) {
+    console.error(`updateItem ${modelName} error:`, error);
+    res.status(500).json({ error: error.message });
+  }
 };
 
-const deleteItem = (model) => async (req, res) => {
-    const { id } = req.params;
-    console.log(`[DELETE] Model: ${model}, ID: ${id}`);
-    try {
-        await prisma[model].delete({
-            where: { id: parseInt(id) },
-        });
-        console.log(`[DELETE] Success for model ${model}, ID ${id}`);
-        res.status(204).send();
-    } catch (error) {
-        console.error(`[DELETE] Error for model ${model}, ID ${id}:`, error.message);
-        // Prisma error for foreign key constraint: P2003
-        if (error.code === 'P2003' || error.message.includes('Foreign key constraint')) {
-            return res.status(409).json({
-                error: `This ${model} cannot be removed because it's currently in use (e.g., in transactions or queues). Try disabling it instead.`
-            });
-        }
-        res.status(500).json({ error: error.message });
+/**
+ * DELETE /api/studio/:model/:id
+ * Access: ADMIN
+ */
+const deleteItem = (modelName) => async (req, res) => {
+  const { id } = req.params;
+  console.log(`[DELETE] Model: ${modelName}, ID: ${id}`);
+  try {
+    const table = modelMap[modelName];
+    if (!table) return res.status(400).json({ error: `Unknown model: ${modelName}` });
+
+    await db.delete(table).where(eq(table.id, parseInt(id)));
+    console.log(`[DELETE] Success for model ${modelName}, ID ${id}`);
+    res.status(204).send();
+  } catch (error) {
+    console.error(`[DELETE] Error for model ${modelName}, ID ${id}:`, error.message);
+    // Postgres foreign key constraint
+    if (error.code === '23503') {
+      return res.status(409).json({
+        error: `This ${modelName} cannot be removed because it's currently in use. Try disabling it instead.`,
+      });
     }
+    res.status(500).json({ error: error.message });
+  }
 };
 
 module.exports = {
-    getAll,
-    createItem,
-    updateItem,
-    deleteItem,
+  getAll,
+  createItem,
+  updateItem,
+  deleteItem,
 };

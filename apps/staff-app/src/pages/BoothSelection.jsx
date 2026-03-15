@@ -29,42 +29,33 @@ export default function BoothSelection({ themes, queueData, onSelect }) {
         <div className="booth-screen animate-fadeIn">
             <div className="booth-logo">JJIKGO PHOTOBOOTH</div>
 
-            <div className="animate-scaleIn" style={{ textAlign: 'center' }}>
+            <div className="animate-slideUp" style={{ textAlign: 'center' }}>
                 <h1 className="booth-title">Which booth are you at?</h1>
-                <p className="booth-subtitle">Select your booth to start managing the queue</p>
+                <p className="booth-subtitle">Select your booth to start managing the queue with high-fidelity precision.</p>
             </div>
 
             {themes.length === 0 ? (
                 <div style={{
-                    color: 'var(--text-muted)', fontSize: 15, textAlign: 'center',
+                    color: 'var(--text-m)', fontSize: 15, textAlign: 'center',
                     padding: '40px', display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center'
                 }}>
                     <div style={{ fontSize: 48, opacity: 0.3 }}>🏚️</div>
-                    <div style={{ fontWeight: 600 }}>No booths configured</div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-h)' }}>No booths configured</div>
                     <div style={{ fontSize: 13, opacity: 0.6 }}>Add themes in the Admin settings</div>
                 </div>
             ) : (
                 <div className="booth-grid">
                     {themes.map((theme, idx) => {
-                        // Count waiting customers for this theme
                         const myQueues = queueData[theme.name] || [];
                         const waitingCount = myQueues.filter(q => q.status?.toLowerCase() === 'waiting').length;
 
                         return (
                             <button
                                 key={theme.id}
-                                className="booth-card animate-fadeUp"
-                                style={{ animationDelay: `${idx * 0.08}s` }}
+                                className="booth-card animate-slideUp"
+                                style={{ animationDelay: `${idx * 0.1}s` }}
                                 onClick={() => onSelect(theme)}
                             >
-                                {/* Colored top stripe */}
-                                <div style={{
-                                    position: 'absolute', top: 0, left: 0, right: 0, height: 3,
-                                    background: ACCENT_GRADIENTS[idx % ACCENT_GRADIENTS.length],
-                                    borderRadius: '20px 20px 0 0',
-                                }} />
-
-                                {/* Queue notification badge */}
                                 {waitingCount > 0 && (
                                     <div className="booth-badge">
                                         {waitingCount}
@@ -73,18 +64,12 @@ export default function BoothSelection({ themes, queueData, onSelect }) {
 
                                 <div className="booth-card-icon">{getBoothIcon(theme)}</div>
 
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                     <div className="booth-card-name">{theme.name}</div>
                                     <div className="booth-card-prefix">
-                                        Prefix: {theme.prefix || 'T'}
+                                        {theme.prefix || 'T'}
                                     </div>
                                 </div>
-
-                                {/* Arrow hint */}
-                                <div style={{
-                                    position: 'absolute', bottom: 14, right: 16,
-                                    fontSize: 18, opacity: 0.2
-                                }}>→</div>
                             </button>
                         );
                     })}
@@ -92,10 +77,10 @@ export default function BoothSelection({ themes, queueData, onSelect }) {
             )}
 
             <div style={{
-                marginTop: 48, fontSize: 12, color: 'var(--text-muted)',
-                fontWeight: 500, opacity: 0.5
+                marginTop: 64, fontSize: 11, color: 'var(--text-m)',
+                fontWeight: 700, letterSpacing: '0.1em', opacity: 0.8
             }}>
-                Staff App · {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                STAFF TERMINAL V.2.0 · {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase()}
             </div>
         </div>
     );

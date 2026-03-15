@@ -117,7 +117,8 @@ export const useStore = create(
                             username: userData.username,
                             full_name: userData.full_name,
                             role: userData.role,
-                            branch_id: userData.branch_id
+                            branch_id: userData.branch_id,
+                            token: userData.token
                         },
                         branch: userData.branch
                     });

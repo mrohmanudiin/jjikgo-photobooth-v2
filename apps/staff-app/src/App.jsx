@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './index.css';
 import BoothSelection from './pages/BoothSelection';
 import StaffDashboard from './pages/StaffDashboard';
+import Login from './pages/Login';
 import { fetchThemes, fetchQueue, socket } from './utils/api';
 
 export default function App() {
@@ -10,23 +11,41 @@ export default function App() {
   const [selectedTheme, setSelectedTheme] = useState(null);
   const [loadingThemes, setLoadingThemes] = useState(true);
   const [loadingQueue, setLoadingQueue] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    const store = localStorage.getItem('jjikgo-staff-store');
+    return !!store;
+  });
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('jjikgo-staff-store');
+    setIsAuthenticated(false);
+  }, []);
 
   const refreshQueue = useCallback(async () => {
+    if (!isAuthenticated) return;
     try {
       const data = await fetchQueue();
       setQueueData(data);
     } catch (e) {
       console.error('Fetch queue error:', e);
+      if (e.response?.status === 401) {
+        handleLogout();
+      }
     } finally {
       setLoadingQueue(false);
     }
-  }, []);
+  }, [isAuthenticated, handleLogout]);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     setLoadingThemes(true);
     fetchThemes()
       .then(setThemes)
-      .catch(console.error)
+      .catch((e) => {
+        console.error(e);
+        if (e.response?.status === 401) handleLogout();
+      })
       .finally(() => setLoadingThemes(false));
 
     refreshQueue();
@@ -40,7 +59,11 @@ export default function App() {
       clearInterval(intervalId);
       socket.off('queueUpdated', refreshQueue);
     };
-  }, [refreshQueue]);
+  }, [refreshQueue, isAuthenticated, handleLogout]);
+
+  if (!isAuthenticated) {
+    return <Login onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
 
   if (loadingThemes) {
     return (
@@ -57,24 +80,46 @@ export default function App() {
     );
   }
 
-  if (!selectedTheme) {
-    return (
-      <BoothSelection 
-        themes={themes} 
-        queueData={queueData}
-        loading={loadingQueue}
-        onSelect={setSelectedTheme} 
-      />
-    );
-  }
-
   return (
-    <StaffDashboard
-      theme={selectedTheme}
-      queueData={queueData}
-      loading={loadingQueue}
-      refresh={refreshQueue}
-      onChangeBooth={() => setSelectedTheme(null)}
-    />
+    <>
+      <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 50 }}>
+        <button 
+          onClick={handleLogout}
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            color: 'var(--text-muted)',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: 500
+          }}
+        >
+          Sign Out
+        </button>
+      </div>
+      <div className="ambient-glow">
+        <div className="glow-1" />
+        <div className="glow-2" />
+      </div>
+
+      {!selectedTheme ? (
+        <BoothSelection 
+          themes={themes} 
+          queueData={queueData}
+          loading={loadingQueue}
+          onSelect={setSelectedTheme} 
+        />
+      ) : (
+        <StaffDashboard
+          theme={selectedTheme}
+          queueData={queueData}
+          loading={loadingQueue}
+          refresh={refreshQueue}
+          onChangeBooth={() => setSelectedTheme(null)}
+        />
+      )}
+    </>
   );
 }
