@@ -1,7 +1,8 @@
 require('dotenv').config();
 
 // Validate required env vars
-const dbUrl = process.env.DATABASE_URL || process.env.DB_URL;
+// Note: 'ATABASE_URL' is included because the logs show a typo in the environment variable name
+const dbUrl = process.env.DATABASE_URL || process.env.DB_URL || process.env.ATABASE_URL;
 
 if (!dbUrl) {
   console.error('❌ DATABASE_URL (or DB_URL) is required');
