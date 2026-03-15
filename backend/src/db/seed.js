@@ -8,7 +8,7 @@ const {
 } = require('./schema');
 
 async function seed() {
-  const queryClient = postgres(process.env.DATABASE_URL);
+  const queryClient = postgres(process.env.DATABASE_URL || process.env.ATABASE_URL);
   const db = drizzle(queryClient);
 
   console.log('🌱 Clearing existing database data...');
