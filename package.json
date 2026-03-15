@@ -12,6 +12,14 @@
         "dev:backend": "npm run dev --workspace=backend",
         "build:cashier": "npm run build --workspace=apps/cashier-app",
         "build:staff": "npm run build --workspace=apps/staff-app",
-        "build:admin": "npm run build --workspace=apps/admin-dashboard"
+        "build:admin": "npm run build --workspace=apps/admin-dashboard",
+        "build:backend": "npm run build --workspace=backend",
+        "start:cashier": "serve -s apps/cashier-app/dist -p ${PORT:-3000}",
+        "start:staff": "serve -s apps/staff-app/dist -p ${PORT:-3000}",
+        "start:admin": "serve -s apps/admin-dashboard/dist -p ${PORT:-3000}",
+        "start:backend": "npm run start --workspace=backend"
+    },
+    "dependencies": {
+        "serve": "^14.2.6"
     }
 }
