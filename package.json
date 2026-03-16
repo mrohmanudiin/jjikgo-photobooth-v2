@@ -21,7 +21,8 @@
         "start:staff": "serve -s apps/staff-app/dist -p ${PORT:-3000}",
         "start:admin": "serve -s apps/admin-dashboard/dist -p ${PORT:-3000}",
         "start:backend": "npm run start --workspace=backend",
-        "start": "npm run start:backend"
+        "start": "npm run start:backend",
+        "build": "npm run build:backend"
     },
     "dependencies": {
         "serve": "^14.2.6"
