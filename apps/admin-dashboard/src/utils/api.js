@@ -7,7 +7,7 @@ if (!API_URL && import.meta.env.PROD) {
   if (currentHost.includes('railway') || currentHost.includes('vercel')) {
     // Attempt to guess the backend URL if not provided
     // This is a last resort to prevent "blank" app due to localhost fallback
-    API_URL = 'https://jjikgo-photobooth-production.up.railway.app';
+    API_URL = 'https://backend-production-d3fc.up.railway.app';
   }
 }
 
