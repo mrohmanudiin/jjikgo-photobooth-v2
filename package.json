@@ -17,7 +17,8 @@
         "start:cashier": "serve -s apps/cashier-app/dist -p ${PORT:-3000}",
         "start:staff": "serve -s apps/staff-app/dist -p ${PORT:-3000}",
         "start:admin": "serve -s apps/admin-dashboard/dist -p ${PORT:-3000}",
-        "start:backend": "npm run start --workspace=backend"
+        "start:backend": "npm run start --workspace=backend",
+        "start": "npm run start:backend"
     },
     "dependencies": {
         "serve": "^14.2.6"
