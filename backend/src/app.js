@@ -9,44 +9,27 @@ const { errorHandler } = require('./middleware/error');
 
 const app = express();
 const server = http.createServer(app);
-// ── Dynamic CORS origin (allows any localhost in dev + Railway/Vercel in prod) ──
-const corsOriginFn = (origin, callback) => {
-    // Allow requests with no origin (curl, mobile apps, Postman)
-    if (!origin) return callback(null, true);
-    
-    // Normalize origin: remove trailing slash if present
-    const cleanOrigin = origin.replace(/\/$/, '');
-
-    // Allow any localhost/127.0.0.1 port
-    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin)) return callback(null, true);
-    
-    // Allow all Railway/Vercel domains and subdomains
-    if (cleanOrigin.endsWith('.up.railway.app') || cleanOrigin.endsWith('.vercel.app')) {
-        return callback(null, true);
-    }
-    
-    // Allow explicit production origins from env var
-    if (env.FRONTEND_URLS && env.FRONTEND_URLS.some(u => u.replace(/\/$/, '') === cleanOrigin)) {
-        return callback(null, true);
-    }
-    
-    console.warn('CORS blocked origin:', origin);
-    callback(new Error(`CORS blocked: ${origin}`));
+// ── CORS: Allow all origins (required for Railway + Vercel cross-origin) ──
+const corsOptions = {
+    origin: (origin, callback) => {
+        // Allow all origins — frontend is on Vercel, backend on Railway
+        callback(null, true);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 const io = new Server(server, {
     cors: {
-        origin: corsOriginFn,
+        origin: '*',
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-        credentials: true,
     }
 });
 
 // ── Middleware ──────────────────────────────────────────
-app.use(cors({
-    origin: corsOriginFn,
-    credentials: true,
-}));
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle preflight for all routes
 app.use(express.json());
 app.use(cookieParser());
 
