@@ -1,3 +1,7 @@
+console.log('--- JJIKGO BACKEND BOOTING ---');
+console.log('Node Version:', process.version);
+console.log('Time:', new Date().toISOString());
+
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
@@ -9,7 +13,13 @@ const { errorHandler } = require('./middleware/error');
 
 const app = express();
 const server = http.createServer(app);
-// ── CORS: Allow all origins (required for Railway + Vercel cross-origin) ──
+
+// ── Health check (Top for Diagnostics) ─────────────────
+app.get('/health', (req, res) => {
+    res.json({ status: 'Live', node: process.version });
+});
+
+// ── CORS ───────────────────────────────────────────────
 const corsOptions = {
     origin: function (origin, callback) {
         // Always allow — sets Access-Control-Allow-Origin to the exact requesting origin
