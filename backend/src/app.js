@@ -13,14 +13,24 @@ const server = http.createServer(app);
 const corsOriginFn = (origin, callback) => {
     // Allow requests with no origin (curl, mobile apps, Postman)
     if (!origin) return callback(null, true);
-    // Allow any localhost/127.0.0.1 port in development
-    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
-    // Allow all Railway.app subdomains (production deployment)
-    if (/^https:\/\/[a-z0-9-]+\.up\.railway\.app$/.test(origin)) return callback(null, true);
-    // Allow all Vercel.app subdomains (Vercel deployment)
-    if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin)) return callback(null, true);
+    
+    // Normalize origin: remove trailing slash if present
+    const cleanOrigin = origin.replace(/\/$/, '');
+
+    // Allow any localhost/127.0.0.1 port
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin)) return callback(null, true);
+    
+    // Allow all Railway/Vercel domains and subdomains
+    if (cleanOrigin.endsWith('.up.railway.app') || cleanOrigin.endsWith('.vercel.app')) {
+        return callback(null, true);
+    }
+    
     // Allow explicit production origins from env var
-    if (env.FRONTEND_URLS && env.FRONTEND_URLS.includes(origin)) return callback(null, true);
+    if (env.FRONTEND_URLS && env.FRONTEND_URLS.some(u => u.replace(/\/$/, '') === cleanOrigin)) {
+        return callback(null, true);
+    }
+    
+    console.warn('CORS blocked origin:', origin);
     callback(new Error(`CORS blocked: ${origin}`));
 };
 

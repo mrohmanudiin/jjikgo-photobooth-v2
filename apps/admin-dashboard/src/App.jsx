@@ -19,33 +19,26 @@ import { BranchProvider } from './contexts/BranchContext';
 import api from '../utils/api';
 import { useState, useEffect } from 'react';
 
-// Setup global axios defaults
-axios.defaults.withCredentials = true;
-
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return !!localStorage.getItem('jjikgo-admin-store');
   });
 
   useEffect(() => {
-    // Intercept requests to inject the token
-    const requestInterceptor = api.interceptors.request.use((config) => {
-      // Logic moved to utils/api.js, but keeping here for extra safety or local overrides if needed
-      return config;
-    });
-
+    // Synchronize authentication state with the utility interceptor if needed
+    // The utility api.js handles redirects, but we can also update local state here
     const responseInterceptor = api.interceptors.response.use(
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
           setIsAuthenticated(false);
+          localStorage.removeItem('jjikgo-admin-store');
         }
         return Promise.reject(error);
       }
     );
 
     return () => {
-      api.interceptors.request.eject(requestInterceptor);
       api.interceptors.response.eject(responseInterceptor);
     };
   }, []);
