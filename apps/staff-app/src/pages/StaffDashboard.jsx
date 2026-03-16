@@ -183,9 +183,9 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
     const [toast, setToast] = useState('');
     const toastTimer = useRef(null);
 
-    const myQueues = queueData[theme.name] || [];
+    const myQueues = (queueData || {})[theme.name] || [];
     const activeQueue = myQueues.find(q => ['called', 'in_session'].includes(q.status?.toLowerCase())) || null;
-    const waitingQueues = myQueues.filter(q => q.status?.toLowerCase() === 'waiting');
+    const waitingQueues = (myQueues || []).filter(q => q.status?.toLowerCase() === 'waiting');
 
     const showToast = (msg) => {
         setToast(msg);

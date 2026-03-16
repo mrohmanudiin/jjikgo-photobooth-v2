@@ -135,7 +135,7 @@ export function TransactionHistory() {
     </span>
   );
 
-  const filtered = transactions
+  const filtered = (transactions || [])
     .filter(t =>
       !search ||
       t.invoice_number?.includes(search) ||
@@ -184,8 +184,8 @@ export function TransactionHistory() {
         {[
           { label: 'Total Transactions', value: filtered.length },
           { label: 'Total Revenue', value: `Rp ${totalRevenue.toLocaleString('id-ID')}`, highlight: true },
-          { label: 'Completed', value: filtered.filter(t => t.status === 'done').length },
-          { label: 'Waiting', value: filtered.filter(t => t.status === 'waiting').length },
+          { label: 'Completed', value: (filtered || []).filter(t => t.status === 'done').length },
+          { label: 'Waiting', value: (filtered || []).filter(t => t.status === 'waiting').length },
         ].map(({ label, value, highlight }) => (
           <div key={label} className="bg-card rounded-2xl border p-4">
             <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mb-1">{label}</div>

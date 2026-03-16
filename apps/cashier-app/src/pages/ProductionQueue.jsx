@@ -33,15 +33,16 @@ export default function ProductionQueue() {
         setConfirmingPrint(null);
     };
 
-    const filtered = transactions.filter((t) => {
+    const filtered = (transactions || []).filter((t) => {
         const matchesStatus = statusFilter === 'ALL' || t.order_status === statusFilter;
         const matchesTheme = themeFilter === 'ALL' || t.theme_id === themeFilter;
         return matchesStatus && matchesTheme;
     });
 
     const counts = {};
+    const txList = transactions || [];
     ORDER_STATUSES.forEach((s) => {
-        counts[s] = transactions.filter((t) => t.order_status === s).length;
+        counts[s] = txList.filter((t) => t.order_status === s).length;
     });
 
     return (
@@ -52,7 +53,7 @@ export default function ProductionQueue() {
                 <div>
                     <h2 style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.01em', margin: 0 }}>Production Queue</h2>
                     <p style={{ fontSize: 13, color: '#8E8E93', marginTop: 4 }}>
-                        {transactions.length} total orders · {counts.waiting || 0} waiting
+                        {(transactions || []).length} total orders · {counts.waiting || 0} waiting
                         {printRequests.length > 0 && (
                             <span style={{
                                 marginLeft: 8,
@@ -234,7 +235,7 @@ export default function ProductionQueue() {
                         style={{ fontSize: 11, padding: '5px 12px', height: 30, borderRadius: 8 }}
                         onClick={() => setStatusFilter('ALL')}
                     >
-                        All ({transactions.length})
+                        All ({(transactions || []).length})
                     </button>
                     {ORDER_STATUSES.map((s) => (
                         <button

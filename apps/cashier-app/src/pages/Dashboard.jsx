@@ -71,8 +71,8 @@ function buildChartData(transactions) {
     });
 
     const today = new Date().toISOString().split('T')[0];
-    transactions
-        .filter((t) => t.created_at.startsWith(today))
+    (transactions || [])
+        .filter((t) => t.created_at?.startsWith(today))
         .forEach((t) => {
             const h = new Date(t.created_at).getHours();
             const idx = h - 8;
@@ -99,8 +99,8 @@ export default function Dashboard() {
     const todaySales = getTodaySales();
     const activeQ = getActiveQ();
     const mostUsed = getMostUsed();
-    const last5 = transactions.slice(0, 5);
-    const chartData = useMemo(() => buildChartData(transactions), [transactions]);
+    const last5 = (transactions || []).slice(0, 5);
+    const chartData = useMemo(() => buildChartData(transactions || []), [transactions]);
 
     const displayCurrency = (val) => showSales ? formatCurrency(val) : 'Rp ••••••';
 
@@ -183,7 +183,7 @@ export default function Dashboard() {
                         {themes.map((theme, idx) => {
                             // Only count live booth activity statuses
                             const IN_BOOTH_STATUSES = ['waiting', 'called', 'in_session'];
-                            const count = transactions.filter(tx =>
+                            const count = (transactions || []).filter(tx =>
                                 tx.theme_id === theme.id && IN_BOOTH_STATUSES.includes(tx.order_status?.toLowerCase())
                             ).length;
 

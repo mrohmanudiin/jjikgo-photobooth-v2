@@ -88,7 +88,7 @@ export const useStore = create(
                 try {
                     const { fetchTransactions } = await import('../utils/api');
                     const txs = await fetchTransactions();
-                    set({ transactions: txs });
+                    set({ transactions: Array.isArray(txs) ? txs : [] });
 
                     // Also derive invoice counter and theme counters from backend if needed
                     // But maybe simply setting transactions is enough.
@@ -442,7 +442,7 @@ export const useStore = create(
             // Derived getters
             getTodayTransactions: () => {
                 const d = today();
-                return get().transactions.filter((t) => t.created_at.startsWith(d));
+                return (get().transactions || []).filter((t) => t.created_at?.startsWith(d));
             },
             getTodaySales: () => {
                 const txs = get().getTodayTransactions();
@@ -454,7 +454,7 @@ export const useStore = create(
                 }, 0);
             },
             getActiveQueueCount: () =>
-                get().transactions.filter((t) =>
+                (get().transactions || []).filter((t) =>
                     t.order_status === 'waiting' ||
                     t.order_status === 'called'
                 ).length,
@@ -466,7 +466,7 @@ export const useStore = create(
                 return Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
             },
             getThemeQueueWaitTime: (themeId) => {
-                const count = get().transactions.filter(t =>
+                const count = (get().transactions || []).filter(t =>
                     t.theme_id === themeId && t.order_status !== 'DONE' && t.order_status !== 'done'
                 ).length;
                 if (count === 0) return 0;
@@ -475,7 +475,7 @@ export const useStore = create(
 
             // Get all print_requested queues for cashier alert panel
             getPrintRequests: () =>
-                get().transactions.filter((t) =>
+                (get().transactions || []).filter((t) =>
                     t.order_status === 'print_requested'
                 ),
 

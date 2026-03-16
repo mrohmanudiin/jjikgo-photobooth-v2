@@ -47,8 +47,9 @@ export function Dashboard() {
       const { data: txAll } = await api.get(`/transactions?${params}`);
 
       // Compute stats
-      const todayTx = txAll.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === today);
-      const totalRevenue = txAll.reduce((s, t) => s + (Number(t.total) || 0), 0);
+      const txList = Array.isArray(txAll) ? txAll : [];
+      const todayTx = txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === today);
+      const totalRevenue = txList.reduce((s, t) => s + (Number(t.total) || 0), 0);
       const todayRevenue = todayTx.reduce((s, t) => s + (Number(t.total) || 0), 0);
 
       setStats({
@@ -56,14 +57,14 @@ export function Dashboard() {
         totalAllTime: txAll.length,
         revenue30d: totalRevenue,
         todayRevenue,
-        waiting: txAll.filter(t => t.status === 'waiting').length,
+        waiting: txList.filter(t => t.status === 'waiting').length,
       });
 
       // Build last 7 days chart
       const last7 = Array.from({ length: 7 }, (_, i) => {
         const day = subDays(new Date(), 6 - i);
         const key = format(day, 'yyyy-MM-dd');
-        const dayTx = txAll.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === key);
+        const dayTx = txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === key);
         return {
           day: format(day, 'EEE'),
           transactions: dayTx.length,
@@ -73,7 +74,7 @@ export function Dashboard() {
       setChartData(last7);
 
       // Recent transactions
-      setRecentTx(txAll.slice(0, 10));
+      setRecentTx(txList.slice(0, 10));
     } catch (err) {
       console.error(err);
     } finally {
