@@ -16,7 +16,20 @@ const server = http.createServer(app);
 
 // ── Health check (Top for Diagnostics) ─────────────────
 app.get('/health', (req, res) => {
-    res.json({ status: 'Live', node: process.version });
+    console.log('💚 Health check ping received at:', new Date().toISOString());
+    res.json({ 
+        status: 'Live', 
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString() 
+    });
+});
+
+// Simple request logger to see if traffic hits the app
+app.use((req, res, next) => {
+    if (req.url !== '/health') {
+        console.log(`📡 [${new Date().toISOString()}] ${req.method} ${req.url}`);
+    }
+    next();
 });
 
 // ── CORS ───────────────────────────────────────────────
@@ -90,9 +103,10 @@ process.on('unhandledRejection', (reason) => {
 
 async function startServer() {
     try {
-        server.listen(env.PORT, () => {
+        const HOST = '0.0.0.0'; 
+        server.listen(env.PORT, HOST, () => {
             console.log(`\n---------------------------------------------------`);
-            console.log(`🚀 Jjikgo API is running on port ${env.PORT}`);
+            console.log(`🚀 Jjikgo API is running on ${HOST}:${env.PORT}`);
             console.log(`🌐 Environment: ${env.NODE_ENV}`);
             console.log(`📡 Socket.io: READY`);
             console.log(`📡 Database: ${env.DATABASE_URL ? 'URL configured' : '⚠️  MISSING'}`);
