@@ -5,9 +5,8 @@ require('dotenv').config();
 const dbUrl = process.env.DATABASE_URL || process.env.DB_URL || process.env.ATABASE_URL;
 
 if (!dbUrl) {
-  console.error('❌ DATABASE_URL (or DB_URL) is required');
-  console.error('Available Environment Variables:', Object.keys(process.env).filter(k => !k.includes('SECRET') && !k.includes('KEY') && !k.includes('PASS')));
-  process.exit(1);
+  console.warn('⚠️  DATABASE_URL (or DB_URL) is missing! The app will likely fail on database queries.');
+  console.log('Available Env Keys:', Object.keys(process.env).filter(k => k.toLowerCase().includes('database') || k.toLowerCase().includes('db') || k.includes('URL')));
 }
 
 const env = {
