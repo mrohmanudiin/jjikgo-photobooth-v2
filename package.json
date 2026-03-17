@@ -16,12 +16,13 @@
         "build:cashier": "npm run build --workspace=apps/cashier-app",
         "build:staff": "npm run build --workspace=apps/staff-app",
         "build:admin": "npm run build --workspace=apps/admin-dashboard",
-        "build:backend": "cd backend && npm install && npm run db:setup",
+        "build:backend": "cd backend && npm install",
         "start:cashier": "serve -s apps/cashier-app/dist -p ${PORT:-3000}",
         "start:staff": "serve -s apps/staff-app/dist -p ${PORT:-3000}",
         "start:admin": "serve -s apps/admin-dashboard/dist -p ${PORT:-3000}",
         "start:backend": "npm run start --workspace=backend",
         "start": "npm run start:backend",
+        "db:setup": "npm run db:setup --workspace=backend",
         "build": "npm run build:admin"
     },
     "dependencies": {
