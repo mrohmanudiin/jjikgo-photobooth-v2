@@ -8,7 +8,7 @@ import { format, subDays } from 'date-fns';
 function StatCard({ title, value, icon: Icon, trend, trendLabel, colorClass = 'text-primary', bgClass = 'bg-primary/10' }) {
   const positive = trend >= 0;
   return (
-    <div className="bg-card rounded-3xl border p-6 hover:shadow-lg transition-all group">
+    <div className="glass-card rounded-3xl border p-6 hover:shadow-lg transition-all group">
       <div className="flex justify-between items-start mb-4">
         <div className={`${bgClass} p-3 rounded-2xl group-hover:scale-110 transition-transform`}>
           <Icon className={`h-6 w-6 ${colorClass}`} />
@@ -155,7 +155,7 @@ export function Dashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-card border rounded-3xl p-6">
+        <div className="glass-card border rounded-3xl p-6">
           <h3 className="text-lg font-black mb-6">Transactions — Last 7 Days</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={chartData} barSize={24}>
@@ -177,7 +177,7 @@ export function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-card border rounded-3xl p-6">
+        <div className="glass-card border rounded-3xl p-6">
           <h3 className="text-lg font-black mb-6">Revenue — Last 7 Days</h3>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={chartData}>
@@ -196,7 +196,7 @@ export function Dashboard() {
       </div>
 
       {/* Recent Transactions */}
-      <div className="bg-card border rounded-3xl p-6">
+      <div className="glass-card border rounded-3xl p-6">
         <h3 className="text-lg font-black mb-5">Recent Transactions</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

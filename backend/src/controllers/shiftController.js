@@ -140,3 +140,49 @@ exports.addExpense = async (req, res) => {
     res.status(500).json({ error: 'Failed to add expense' });
   }
 };
+
+/**
+ * GET /api/shifts/history
+ * Access: CASHIER / ADMIN (branch-scoped)
+ */
+exports.getShiftHistory = async (req, res) => {
+  try {
+    const branchId = parseInt(req.query.branch_id || req.branchFilter || req.user?.branchId);
+    const { date_from, date_to } = req.query;
+
+    const conditions = [
+      eq(shifts.branchId, branchId),
+      eq(shifts.status, 'closed')
+    ];
+
+    if (date_from) {
+      const from = new Date(date_from);
+      from.setHours(0, 0, 0, 0);
+      conditions.push(gte(shifts.endTime, from));
+    }
+
+    if (date_to) {
+      const to = new Date(date_to);
+      to.setHours(23, 59, 59, 999);
+      conditions.push(lte(shifts.endTime, to));
+    }
+
+    // We get the last 100 closed shifts within date range
+    const history = await db.query.shifts.findMany({
+      where: and(...conditions),
+      orderBy: (shifts, { desc }) => [desc(shifts.endTime)],
+      limit: 100,
+      with: {
+        user: { columns: { fullName: true, username: true } },
+      },
+    });
+
+    res.json(history.map(shift => ({
+      ...shift,
+      user: shift.user ? { full_name: shift.user.fullName, username: shift.user.username } : null
+    })));
+  } catch (error) {
+    console.error('getShiftHistory error:', error);
+    res.status(500).json({ error: 'Failed to get shift history' });
+  }
+};

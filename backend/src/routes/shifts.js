@@ -7,6 +7,8 @@ const { authenticate, requireRole, branchScope } = require('../middleware/auth')
 router.post('/start', authenticate, requireRole(['cashier']), branchScope, shiftController.startShift);
 router.post('/:id/end', authenticate, requireRole(['cashier']), branchScope, shiftController.endShift);
 router.get('/current', authenticate, requireRole(['cashier', 'admin']), branchScope, shiftController.getCurrentShift);
+router.get('/history', authenticate, requireRole(['cashier', 'admin']), branchScope, shiftController.getShiftHistory);
 router.post('/expenses', authenticate, requireRole(['cashier']), branchScope, shiftController.addExpense);
 
 module.exports = router;
+
