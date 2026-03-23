@@ -79,13 +79,13 @@ export function Reports() {
                 const res = await api.get(`/transactions?${branchQuery}&date_from=${start}&date_to=${end}`);
                 const txs = res.data;
 
-                let csv = "Invoice,Date,Cashier,Theme,Package,Payment Method,Status,Subtotal,Discount,Total\n";
+                let csv = "Invoice,Date,Cashier,Theme,Package,Payment Method,Status,Total\n";
                 txs.forEach(t => {
                     const dt = format(new Date(t.created_at), 'yyyy-MM-dd HH:mm');
                     const c = `"${t.user?.full_name || 'N/A'}"`;
                     const theme = `"${t.theme || 'N/A'}"`;
                     const pkg = `"${t.package || 'N/A'}"`;
-                    csv += `${t.invoice_number},${dt},${c},${theme},${pkg},${t.payment_method},${t.status},${t.total - (t.discount_amount||0)},${t.discount_amount||0},${t.total}\n`;
+                    csv += `${t.invoice_number},${dt},${c},${theme},${pkg},${t.payment_method},${t.status},${t.total}\n`;
                 });
                 
                 downloadCSV(csv, `Revenue_Report_${selectedBranch.name}_${dateRange.replace(/ /g, '_')}.csv`);

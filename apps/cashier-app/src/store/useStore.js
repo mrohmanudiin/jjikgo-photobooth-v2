@@ -38,7 +38,7 @@ const calcTotal = (packages, addons, cafeSnacks, promo, manualDiscount, selected
     const base = pkgPrice + baseThemes + baseAddons + baseCafe;
     let discount = 0;
     if (promo) {
-        if (promo.type === 'percent') discount = Math.round(base * promo.discount / 100);
+        if (promo.type === 'percent' || promo.type === 'percentage') discount = Math.round(base * promo.discount / 100);
         else if (promo.type === 'flat') discount = promo.discount;
         else if (promo.type === 'manual') discount = manualDiscount || 0;
     }

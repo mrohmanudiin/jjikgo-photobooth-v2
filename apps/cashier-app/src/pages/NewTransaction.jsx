@@ -357,10 +357,15 @@ export default function NewTransaction() {
                                 style={{ paddingLeft: 40, paddingRight: 40, appearance: 'none', cursor: 'pointer' }}
                                 value={builder.promo?.id || 'none'}
                                 onChange={(e) => {
-                                    const p = promosList.find((pr) => pr.id === parseInt(e.target.value));
-                                    setBuilderField('promo', p);
+                                    if (e.target.value === 'none') {
+                                        setBuilderField('promo', null);
+                                    } else {
+                                        const p = promosList.find((pr) => pr.id === parseInt(e.target.value));
+                                        setBuilderField('promo', p);
+                                    }
                                 }}
                             >
+                                <option value="none">No Promo</option>
                                 {promosList.filter(p => p.active !== false).map((p) => (
                                     <option key={p.id} value={p.id}>{p.label}</option>
                                 ))}
@@ -395,7 +400,7 @@ export default function NewTransaction() {
                                 gap: 8,
                             }}>
                                 <CheckCircle2 size={15} />
-                                {builder.promo.type === 'percent'
+                                {(builder.promo.type === 'percent' || builder.promo.type === 'percentage')
                                     ? `${builder.promo.discount}% discount applied`
                                     : builder.promo.type === 'flat'
                                         ? `${formatCurrency(builder.promo.discount)} discount applied`

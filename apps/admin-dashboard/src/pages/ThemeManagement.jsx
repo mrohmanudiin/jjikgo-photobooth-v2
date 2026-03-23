@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../co
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { Plus, TrendingUp, MonitorPlay, Search, Loader2 } from 'lucide-react';
+import { Plus, TrendingUp, MonitorPlay, Search, Loader2, Pencil, Trash2, X, Save } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../utils/api';
@@ -14,6 +14,10 @@ export function ThemeManagement() {
     const [themes, setThemes] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
+    const [editingId, setEditingId] = useState(null);
+    const [formData, setFormData] = useState({ name: '', maxPeople: 2, duration: 15, price: 35000, active: true });
+    const [showForm, setShowForm] = useState(false);
+    const [saving, setSaving] = useState(false);
 
     const fetchData = useCallback(async () => {
         if (!selectedBranch) return;
@@ -21,25 +25,33 @@ export function ThemeManagement() {
         try {
             // Fetch themes & transactions
             const [themesRes, txRes] = await Promise.all([
-                api.get('/studio/theme'),
+                api.get('/studio/themes'),
                 api.get(`/transactions?branch_id=${selectedBranch.id}`)
             ]);
 
             const allTxs = txRes.data;
+            const now = new Date();
+            const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+            const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
+
             const themeData = themesRes.data.map(theme => {
                 const txs = allTxs.filter(t => t.theme_id === theme.id && t.status === 'done');
                 const sessionsTotal = txs.length;
                 const revenueTotal = txs.reduce((sum, t) => sum + Number(t.total || 0), 0);
                 
-                // Mock trend for visual flair, since we'd need historical comparison to accurately calculate
-                const trend = Math.floor(Math.random() * 30) - 10; 
+                const currentMonthTxs = txs.filter(t => new Date(t.created_at) >= lastMonth);
+                const previousMonthTxs = txs.filter(t => new Date(t.created_at) >= twoMonthsAgo && new Date(t.created_at) < lastMonth);
+
+                const currentRev = currentMonthTxs.reduce((sum, t) => sum + Number(t.total || 0), 0);
+                const prevRev = previousMonthTxs.reduce((sum, t) => sum + Number(t.total || 0), 0);
+                const trend = prevRev === 0 ? (currentRev > 0 ? 100 : 0) : Math.round(((currentRev - prevRev) / prevRev) * 100);
 
                 return {
                     id: theme.id,
                     name: theme.name,
                     maxPeople: parseInt(theme.maxPeople || 2),
                     duration: theme.duration || 15,
-                    price: 35000, // Replace if price moves to theme level
+                    price: theme.price || 35000, 
                     status: theme.active !== false ? 'Active' : 'Inactive',
                     sessionsTotal,
                     revenueTotal,
@@ -58,6 +70,42 @@ export function ThemeManagement() {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            const payload = { name: formData.name, max_people: formData.maxPeople, duration: formData.duration, price: formData.price, active: formData.active };
+            if (editingId) {
+                await api.put(`/studio/themes/${editingId}`, payload);
+            } else {
+                await api.post('/studio/themes', payload);
+            }
+            setShowForm(false);
+            setEditingId(null);
+            setFormData({ name: '', maxPeople: 2, duration: 15, price: 35000, active: true });
+            fetchData();
+        } catch (err) {
+            alert('Failed to save theme: ' + (err.response?.data?.error || err.message));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleEdit = (theme) => {
+        setEditingId(theme.id);
+        setFormData({ name: theme.name, maxPeople: theme.maxPeople, duration: theme.duration, price: theme.price, active: theme.status === 'Active' });
+        setShowForm(true);
+    };
+
+    const handleDelete = async (id) => {
+        if (!confirm('Delete this theme?')) return;
+        try {
+            await api.delete(`/studio/themes/${id}`);
+            fetchData();
+        } catch (err) {
+            alert('Failed to delete');
+        }
+    };
 
     const filteredThemes = themes.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()));
     const totalSessions = themes.reduce((acc, t) => acc + t.sessionsTotal, 0);
@@ -87,8 +135,45 @@ export function ThemeManagement() {
                     <h2 className="text-3xl font-bold tracking-tight">Theme Management</h2>
                     <p className="text-muted-foreground mt-1">Manage photobooth themes and track their performance at {selectedBranch?.name || 'this branch'}.</p>
                 </div>
-                <Button><Plus className="mr-2 h-4 w-4" /> Add New Theme</Button>
+                <Button onClick={() => { setEditingId(null); setFormData({ name: '', maxPeople: 2, duration: 15, price: 35000, active: true }); setShowForm(true); }}><Plus className="mr-2 h-4 w-4" /> Add New Theme</Button>
             </div>
+
+            {showForm && (
+                <Card className="border-primary/30">
+                    <CardHeader className="pb-4">
+                        <CardTitle>{editingId ? 'Edit Theme' : 'New Theme'}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium">Name</label>
+                                <input className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Theme name" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium">Max People</label>
+                                <input type="number" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={formData.maxPeople} onChange={e => setFormData({...formData, maxPeople: Number(e.target.value)})} />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium">Duration (min)</label>
+                                <input type="number" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={formData.duration} onChange={e => setFormData({...formData, duration: Number(e.target.value)})} />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium">Price (Rp)</label>
+                                <input type="number" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={formData.price} onChange={e => setFormData({...formData, price: Number(e.target.value)})} />
+                            </div>
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                            <Button onClick={handleSave} disabled={saving || !formData.name}>
+                                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                {editingId ? 'Update' : 'Create'}
+                            </Button>
+                            <Button variant="outline" onClick={() => { setShowForm(false); setEditingId(null); }}>
+                                <X className="mr-2 h-4 w-4" /> Cancel
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             <div className="grid gap-4 md:grid-cols-2">
                 <Card>
@@ -197,7 +282,8 @@ export function ThemeManagement() {
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="sm" className="mr-2">Edit</Button>
+                                        <Button variant="ghost" size="sm" onClick={() => handleEdit(t)}><Pencil className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="sm" onClick={() => handleDelete(t.id)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                                     </TableCell>
                                 </TableRow>
                             ))}

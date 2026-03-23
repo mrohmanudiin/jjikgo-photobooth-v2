@@ -90,7 +90,13 @@ export const fetchTransactions = async () => {
 };
 
 export const createTransaction = async (data) => {
-    const response = await api.post('/transactions', { sessions: data });
+    const payload = {
+        sessions: data,
+        branch_id: data[0]?.branch_id,
+        shift_id: data[0]?.shift_id,
+        user_id: data[0]?.user_id
+    };
+    const response = await api.post('/transactions', payload);
     return response.data;
 };
 

@@ -72,9 +72,13 @@ export default function App() {
         alignItems: 'center', justifyContent: 'center',
         background: 'var(--bg)', flexDirection: 'column', gap: 20
       }}>
-        <div className="spinner" style={{ width: 36, height: 36, borderWidth: 3 }} />
-        <div style={{ color: 'var(--text-muted)', fontSize: 14, fontWeight: 600 }}>
-          Loading system…
+        <div className="ambient-bg">
+          <div className="ambient-orb ambient-orb-1" />
+          <div className="ambient-orb ambient-orb-2" />
+        </div>
+        <div className="spinner" style={{ width: 36, height: 36, borderWidth: 3, borderTopColor: 'var(--accent-cyan)' }} />
+        <div style={{ color: 'var(--text-s)', fontSize: 14, fontWeight: 600, letterSpacing: '0.04em' }}>
+          Loading…
         </div>
       </div>
     );
@@ -82,34 +86,13 @@ export default function App() {
 
   return (
     <>
-      <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 50 }}>
-        <button 
-          onClick={handleLogout}
-          style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            color: 'var(--text-muted)',
-            padding: '8px 16px',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: 500
-          }}
-        >
-          Sign Out
-        </button>
-      </div>
-      <div className="ambient-glow">
-        <div className="glow-1" />
-        <div className="glow-2" />
-      </div>
-
       {!selectedTheme ? (
         <BoothSelection 
           themes={themes} 
           queueData={queueData}
           loading={loadingQueue}
-          onSelect={setSelectedTheme} 
+          onSelect={setSelectedTheme}
+          onLogout={handleLogout}
         />
       ) : (
         <StaffDashboard
@@ -118,6 +101,7 @@ export default function App() {
           loading={loadingQueue}
           refresh={refreshQueue}
           onChangeBooth={() => setSelectedTheme(null)}
+          onLogout={handleLogout}
         />
       )}
     </>

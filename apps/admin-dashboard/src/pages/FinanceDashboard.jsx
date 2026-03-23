@@ -11,7 +11,9 @@ import {
     Download,
     FileSpreadsheet,
     ArrowUpRight,
-    Loader2
+    Loader2,
+    Target,
+    X
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, AreaChart, Area } from 'recharts';
 import { cn } from '../lib/utils';
@@ -69,6 +71,52 @@ export function FinanceDashboard() {
     const [dateRange, setDateRange] = useState('Today');
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showTargetModal, setShowTargetModal] = useState(false);
+    const [targets, setTargets] = useState({ daily: 1000000, monthly: 30000000, yearly: 360000000 });
+
+    const fetchSettings = useCallback(async () => {
+        try {
+            const params = new URLSearchParams();
+            if (selectedBranch) params.append('branchFilter', selectedBranch.id);
+            const { data } = await api.get(`/studio/settings?${params}`);
+            setTargets({
+                daily: Number(data.daily_target_revenue) || 1000000,
+                monthly: Number(data.monthly_target_revenue) || 30000000,
+                yearly: Number(data.yearly_target_revenue) || 360000000,
+            });
+        } catch(err) {
+            console.error('Failed to fetch settings', err);
+        }
+    }, [selectedBranch]);
+
+    useEffect(() => {
+        fetchSettings();
+    }, [fetchSettings]);
+
+    const handleSaveTargets = async () => {
+        try {
+            const payloadDaily = { key: 'daily_target_revenue', value: targets.daily };
+            const payloadMonthly = { key: 'monthly_target_revenue', value: targets.monthly };
+            const payloadYearly = { key: 'yearly_target_revenue', value: targets.yearly };
+
+            if (selectedBranch) {
+                payloadDaily.branch_id = selectedBranch.id;
+                payloadMonthly.branch_id = selectedBranch.id;
+                payloadYearly.branch_id = selectedBranch.id;
+            }
+
+            await Promise.all([
+                api.post('/studio/settings', payloadDaily),
+                api.post('/studio/settings', payloadMonthly),
+                api.post('/studio/settings', payloadYearly),
+            ]);
+            setShowTargetModal(false);
+            fetchSettings();
+        } catch(e) {
+            console.error(e);
+            alert('Failed to save targets');
+        }
+    };
 
     const formatCurrency = (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
 
@@ -199,6 +247,9 @@ export function FinanceDashboard() {
                     <p className="text-muted-foreground mt-1">Deep dive into financial metrics, revenue breakdown, and trends. {selectedBranch && <span className="text-primary font-medium">— {selectedBranch.name}</span>}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setShowTargetModal(true)} className="h-8">
+                        <Target className="mr-2 h-4 w-4" /> Set Targets
+                    </Button>
                     <div className="flex items-center border rounded-md p-1 bg-muted/50">
                         {['Today', '7 Days', '30 Days', 'This Month'].map(range => (
                             <Button
@@ -225,7 +276,26 @@ export function FinanceDashboard() {
                     <StatCard title="Total Revenue" value={formatCurrency(totalRevenue)} subtext="Collected" icon={CircleDollarSign} />
                     <StatCard title="Total Transactions" value={totalTransactions} subtext="Successful payments" icon={Activity} />
                     <StatCard title="Avg Check Size" value={formatCurrency(avgCheckSize)} subtext="Per transaction" icon={CreditCard} />
-                    <StatCard title="Net Profit (Est)" value={formatCurrency(netProfit)} subtext="68% margin applied" icon={TrendingUp} />
+                    <Card className="hover:shadow-md transition-shadow">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">{dateRange === 'Today' ? 'Daily Target' : 'Revenue Target'}</CardTitle>
+                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Target className="h-4 w-4 text-primary" />
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{(totalRevenue / (dateRange === 'Today' ? targets.daily : targets.monthly) * 100).toFixed(1)}%</div>
+                            <div className="w-full bg-secondary h-2 rounded-full overflow-hidden mt-2">
+                                <div 
+                                    className="bg-primary h-full transition-all duration-500" 
+                                    style={{ width: `${Math.min(100, Math.max(0, (totalRevenue / (dateRange === 'Today' ? targets.daily : targets.monthly) * 100)))}%` }}
+                                ></div>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-2">
+                                {formatCurrency(totalRevenue)} / {formatCurrency(dateRange === 'Today' ? targets.daily : targets.monthly)}
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-7">
@@ -342,6 +412,51 @@ export function FinanceDashboard() {
                     </Card>
                 </div>
                 </>
+            )}
+            {showTargetModal && (
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+                    <div className="bg-card w-full max-w-md rounded-xl border shadow-lg overflow-hidden animate-in fade-in zoom-in-95">
+                        <div className="flex justify-between items-center p-6 border-b">
+                            <h3 className="text-lg font-semibold">Set Revenue Targets</h3>
+                            <Button variant="ghost" size="sm" onClick={() => setShowTargetModal(false)} className="h-8 w-8 p-0 rounded-full">
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Daily Target (Rp)</label>
+                                <input 
+                                    type="number" 
+                                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                                    value={targets.daily}
+                                    onChange={(e) => setTargets({...targets, daily: Number(e.target.value)})}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Monthly Target (Rp)</label>
+                                <input 
+                                    type="number" 
+                                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                                    value={targets.monthly}
+                                    onChange={(e) => setTargets({...targets, monthly: Number(e.target.value)})}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Yearly Target (Rp)</label>
+                                <input 
+                                    type="number" 
+                                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                                    value={targets.yearly}
+                                    onChange={(e) => setTargets({...targets, yearly: Number(e.target.value)})}
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-end p-6 border-t gap-2 bg-muted/40">
+                            <Button variant="outline" onClick={() => setShowTargetModal(false)}>Cancel</Button>
+                            <Button onClick={handleSaveTargets}>Save Targets</Button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

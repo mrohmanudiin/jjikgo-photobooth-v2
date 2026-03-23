@@ -6,8 +6,6 @@ import { Save, CheckCircle2, Cloud, Printer, Bell, Palette, Settings2, HardDrive
 import { cn } from '../lib/utils';
 
 const tabs = [
-    { id: 'session', label: 'Session', icon: Settings2 },
-    { id: 'hardware', label: 'Hardware & Storage', icon: HardDrive },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'appearance', label: 'Appearance', icon: Palette },
 ];
@@ -34,7 +32,7 @@ function Toggle({ defaultChecked = false }) {
 }
 
 export function Settings() {
-    const [activeTab, setActiveTab] = useState('session');
+    const [activeTab, setActiveTab] = useState('notifications');
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -59,61 +57,6 @@ export function Settings() {
                 </nav>
 
                 <div className="flex-1 min-w-0">
-                    {activeTab === 'session' && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Session Configuration</CardTitle>
-                                <CardDescription>Default timings and limits for photo sessions.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-0">
-                                <SettingRow label="Default Session Duration" description="Time limit in minutes per session.">
-                                    <input type="number" defaultValue="15" className="h-9 w-24 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20" />
-                                </SettingRow>
-                                <SettingRow label="Max Retakes Allowed" description="How many times a customer can retake photos.">
-                                    <input type="number" defaultValue="3" className="h-9 w-24 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20" />
-                                </SettingRow>
-                                <SettingRow label="Auto-End Session After Timeout" description="Automatically close session when timer runs out.">
-                                    <Toggle defaultChecked={true} />
-                                </SettingRow>
-                                <SettingRow label="Show Countdown Warning" description="Display a 30-second warning before session ends.">
-                                    <Toggle defaultChecked={true} />
-                                </SettingRow>
-                            </CardContent>
-                        </Card>
-                    )}
-
-                    {activeTab === 'hardware' && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Hardware & Storage</CardTitle>
-                                <CardDescription>Printer, camera, and cloud storage settings.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-0">
-                                <SettingRow label="Default Print Size" description="Paper size for standard print jobs.">
-                                    <select className="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 min-w-[180px]">
-                                        <option>4x6 (Standard)</option>
-                                        <option>2x6 (Strips)</option>
-                                        <option>5x7 (Large)</option>
-                                    </select>
-                                </SettingRow>
-                                <SettingRow label="Local Storage Path" description="Where session photos are stored locally.">
-                                    <input type="text" defaultValue="D:\JJIKGO_PHOTOS\Sessions" className="h-9 w-full max-w-xs rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20" />
-                                </SettingRow>
-                                <SettingRow label="Google Drive Sync" description="Auto-upload session photos to Google Drive.">
-                                    <div className="flex items-center gap-3">
-                                        <Badge variant="outline" className="text-emerald-600 bg-emerald-500/10 border-emerald-500/20">
-                                            <CheckCircle2 className="h-3 w-3 mr-1" /> Connected
-                                        </Badge>
-                                        <Button variant="outline" size="sm">Relink</Button>
-                                    </div>
-                                </SettingRow>
-                                <SettingRow label="Auto-Print After Session" description="Automatically send selected photos to printer.">
-                                    <Toggle defaultChecked={false} />
-                                </SettingRow>
-                            </CardContent>
-                        </Card>
-                    )}
-
                     {activeTab === 'notifications' && (
                         <Card>
                             <CardHeader>

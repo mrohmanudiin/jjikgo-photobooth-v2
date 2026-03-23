@@ -142,7 +142,8 @@ exports.createTransaction = async (req, res) => {
       if (!tId) continue;
 
       // Auto-compute queue number: count today's queues for this theme + 1
-      const existingCount = await db.select({ count: require('drizzle-orm').count() })
+      const { sql } = require('drizzle-orm');
+      const existingCount = await db.select({ count: sql`count(*)` })
         .from(queues)
         .where(and(
           eq(queues.themeId, tId),
