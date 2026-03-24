@@ -72,9 +72,13 @@ function buildChartData(transactions) {
 
     const today = new Date().toISOString().split('T')[0];
     (Array.isArray(transactions) ? transactions : [])
-        .filter((t) => t.created_at?.startsWith(today))
+        .filter((t) => {
+            const ts = t.created_at || t.createdAt || '';
+            return ts.startsWith(today);
+        })
         .forEach((t) => {
-            const h = new Date(t.created_at).getHours();
+            const ts = t.created_at || t.createdAt || '';
+            const h = new Date(ts).getHours();
             const idx = h - 8;
             if (idx >= 0 && idx < hours.length) hours[idx].sales += t.total;
         });

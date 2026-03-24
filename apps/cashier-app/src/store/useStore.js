@@ -446,7 +446,10 @@ export const useStore = create(
             getTodayTransactions: () => {
                 const d = today();
                 const txs = get().transactions;
-                return (Array.isArray(txs) ? txs : []).filter((t) => t.created_at?.startsWith(d));
+                return (Array.isArray(txs) ? txs : []).filter((t) => {
+                    const ts = t.created_at || t.createdAt || '';
+                    return ts.startsWith(d);
+                });
             },
             getTodaySales: () => {
                 const txs = get().getTodayTransactions();
@@ -459,10 +462,10 @@ export const useStore = create(
             },
             getActiveQueueCount: () => {
                 const txs = get().transactions;
-                return (Array.isArray(txs) ? txs : []).filter((t) =>
-                    t.order_status === 'waiting' ||
-                    t.order_status === 'called'
-                ).length;
+                return (Array.isArray(txs) ? txs : []).filter((t) => {
+                    const s = (t.order_status || t.status || '').toLowerCase();
+                    return s === 'waiting' || s === 'called';
+                }).length;
             },
             getMostUsedPackage: () => {
                 const txs = get().getTodayTransactions();
@@ -483,9 +486,10 @@ export const useStore = create(
             // Get all print_requested queues for cashier alert panel
             getPrintRequests: () => {
                 const txs = get().transactions;
-                return (Array.isArray(txs) ? txs : []).filter((t) =>
-                    t.order_status === 'print_requested'
-                );
+                return (Array.isArray(txs) ? txs : []).filter((t) => {
+                    const s = (t.order_status || t.status || '').toLowerCase();
+                    return s === 'print_requested';
+                });
             },
 
             // Confirm print — advance to PRINTING via backend

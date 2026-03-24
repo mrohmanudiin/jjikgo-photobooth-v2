@@ -21,23 +21,37 @@ function PrivateRoute({ children }) {
 
 export default function App() {
   const [printAlerts, setPrintAlerts] = useState([]);
+  const isLoggedIn = useStore((s) => s.isLoggedIn);
+  const logout = useStore((s) => s.logout);
 
   const dismissAlert = (id) =>
     setPrintAlerts((prev) => prev.filter((a) => a.id !== id));
 
+  // ── On mount: validate session token is still alive ───────────────────────
   useEffect(() => {
+    if (!isLoggedIn) return;
+
+    import('./utils/api').then(({ api }) => {
+      api.get('/auth/me').catch((err) => {
+        if (err.response?.status === 401) {
+          // Token is dead; log out cleanly
+          logout();
+        }
+      });
+    });
+  }, []); // run once on cold mount only
+
+  // ── Load master data + wire up socket whenever we become logged in ────────
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
     const s = useStore.getState();
     s.refreshMasterData();
     s.refreshTransactions();
 
-    // Queue updates from any source (cashier, staff, admin)
-    socket.on('queueUpdated', () => {
-      s.refreshTransactions();
-    });
-
-    // Print requests from the staff app — auto refresh + show alert
-    socket.on('printRequested', ({ queue }) => {
-      s.refreshTransactions();
+    const onQueueUpdated = () => useStore.getState().refreshTransactions();
+    const onPrintRequested = ({ queue }) => {
+      useStore.getState().refreshTransactions();
       const themeName = queue?.theme?.name || 'Unknown Booth';
       const customerName = queue?.transaction?.customer_name || 'Customer';
       const qPrefix = queue?.theme?.prefix || 'T';
@@ -54,15 +68,18 @@ export default function App() {
           transactionId: queue?.id,
           timestamp: new Date(),
         },
-        ...prev.slice(0, 4), // keep max 5 alerts
+        ...prev.slice(0, 4),
       ]);
-    });
+    };
+
+    socket.on('queueUpdated', onQueueUpdated);
+    socket.on('printRequested', onPrintRequested);
 
     return () => {
-      socket.off('queueUpdated');
-      socket.off('printRequested');
+      socket.off('queueUpdated', onQueueUpdated);
+      socket.off('printRequested', onPrintRequested);
     };
-  }, []);
+  }, [isLoggedIn]);
 
   return (
     <PrintAlertContext.Provider value={{ alerts: printAlerts, dismissAlert }}>

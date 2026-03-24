@@ -21,6 +21,16 @@ export default function App() {
     setIsAuthenticated(false);
   }, []);
 
+  // ── Validate token on cold mount ──────────────────────────────────────────
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    import('./utils/api').then(({ api }) => {
+      api.get('/auth/me').catch((err) => {
+        if (err.response?.status === 401) handleLogout();
+      });
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const refreshQueue = useCallback(async () => {
     if (!isAuthenticated) return;
     try {

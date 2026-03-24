@@ -27,24 +27,16 @@ function App() {
     return !!localStorage.getItem('jjikgo-admin-store');
   });
 
+  // ── Validate token on cold mount (catches expired sessions after refresh) ──
   useEffect(() => {
-    // Synchronize authentication state with the utility interceptor if needed
-    // The utility api.js handles redirects, but we can also update local state here
-    const responseInterceptor = api.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (error.response?.status === 401) {
-          setIsAuthenticated(false);
-          localStorage.removeItem('jjikgo-admin-store');
-        }
-        return Promise.reject(error);
+    if (!isAuthenticated) return;
+    api.get('/auth/me').catch((err) => {
+      if (err.response?.status === 401) {
+        localStorage.removeItem('jjikgo-admin-store');
+        setIsAuthenticated(false);
       }
-    );
-
-    return () => {
-      api.interceptors.response.eject(responseInterceptor);
-    };
-  }, []);
+    });
+  }, []); // run once only
 
   if (!isAuthenticated) {
     return <Login onLoginSuccess={() => setIsAuthenticated(true)} />;
