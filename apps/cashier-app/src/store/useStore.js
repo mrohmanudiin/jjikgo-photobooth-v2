@@ -125,6 +125,18 @@ export const useStore = create(
                 }
             },
 
+            updateOrderStatus: async (id, status) => {
+                try {
+                    const { updateOrderStatusApi } = await import('../utils/api');
+                    const txs = get().transactions;
+                    const tx = (Array.isArray(txs) ? txs : []).find(t => t.id === id || t.queue_id === id);
+                    const targetId = tx?.queue_id || id;
+                    await updateOrderStatusApi(targetId, status);
+                    get().refreshTransactions();
+                } catch (e) {
+                    console.error('Failed to update status', e);
+                }
+            },
 
             // Auth
             isLoggedIn: false,

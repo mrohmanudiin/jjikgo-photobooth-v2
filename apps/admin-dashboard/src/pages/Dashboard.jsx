@@ -36,6 +36,15 @@ export function Dashboard() {
   const [chartRange, setChartRange] = useState('7d'); // '7d' or '30d'
   const [topPackagesRange, setTopPackagesRange] = useState('weekly'); // 'daily' or 'weekly'
   const [topPackages, setTopPackages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(null);
+  const [chartData, setChartData] = useState([]);
+  const [recentTx, setRecentTx] = useState([]);
+  
+  // Targets (will be overridden by settings)
+  const [dailyTarget, setDailyTarget] = useState(1000000);
+  const [monthlyTarget, setMonthlyTarget] = useState(30000000);
+  const [yearlyTarget, setYearlyTarget] = useState(360000000);
   
   const fetchData = useCallback(async () => {
     setLoading(true);
