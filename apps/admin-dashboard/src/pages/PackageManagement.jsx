@@ -21,15 +21,11 @@ export function PackageManagement() {
     const [dupModal, setDupModal] = useState({ open: false, label: '', items: [], sourceBranchId: null });
 
     const fetchPackages = useCallback(async () => {
+        if (!selectedBranch) return;
         setLoading(true);
         try {
-            const res = await api.get(selectedBranch ? `/studio/packages?branchId=${selectedBranch.id}` : '/studio/packages');
-            const data = res.data || [];
-            if (selectedBranch) {
-                setPackages(data.filter(p => p.branch_id === selectedBranch.id || p.branchId === selectedBranch.id));
-            } else {
-                setPackages(data);
-            }
+            const res = await api.get(`/studio/packages?branch_id=${selectedBranch.id}`);
+            setPackages(res.data || []);
         } catch (err) {
             console.error('Failed to load packages', err);
         } finally {
@@ -145,7 +141,7 @@ export function PackageManagement() {
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Package Management</h2>
                     <p className="text-muted-foreground mt-1">
-                        {selectedBranch ? `Manage packages for ${selectedBranch.name}` : 'Manage packages across all branches'}
+                        Manage packages for {selectedBranch?.name}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -178,21 +174,6 @@ export function PackageManagement() {
                             <label className="text-sm font-medium">Description</label>
                             <input className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Optional description" />
                         </div>
-                        {!selectedBranch && (
-                            <div className="space-y-1.5 flex flex-col">
-                                <label className="text-sm font-medium">Branch</label>
-                                <select 
-                                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" 
-                                    value={formData.branchId || ''} 
-                                    onChange={e => setFormData({...formData, branchId: e.target.value ? Number(e.target.value) : null})}
-                                >
-                                    <option value="">Select Branch (Global if empty)</option>
-                                    {branches.map(b => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
                         <div className="flex gap-2 pt-2">
                             <Button onClick={handleSave} disabled={saving || !formData.label || !formData.price}>
                                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -223,7 +204,6 @@ export function PackageManagement() {
                                 <TableHead className="font-semibold">Name</TableHead>
                                 <TableHead className="font-semibold">Price</TableHead>
                                 <TableHead className="font-semibold">Description</TableHead>
-                                {!selectedBranch && <TableHead className="font-semibold">Branch</TableHead>}
                                 <TableHead className="font-semibold">Status</TableHead>
                                 <TableHead className="text-right font-semibold">Actions</TableHead>
                             </TableRow>
@@ -234,11 +214,6 @@ export function PackageManagement() {
                                     <TableCell className="font-medium">{pkg.label}</TableCell>
                                     <TableCell>Rp {Number(pkg.price).toLocaleString('id-ID')}</TableCell>
                                     <TableCell className="text-muted-foreground">{pkg.description || '—'}</TableCell>
-                                    {!selectedBranch && (
-                                        <TableCell>
-                                            {pkg.branchId || pkg.branch_id ? getBranchName(pkg.branchId || pkg.branch_id) : 'Global'}
-                                        </TableCell>
-                                    )}
                                     <TableCell>
                                         <Badge variant={pkg.active !== false ? 'success' : 'secondary'}>{pkg.active !== false ? 'Active' : 'Inactive'}</Badge>
                                     </TableCell>
@@ -251,7 +226,7 @@ export function PackageManagement() {
                             ))}
                             {filtered.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={selectedBranch ? 5 : 6} className="text-center py-8 text-muted-foreground">No packages found.</TableCell>
+                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No packages found.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

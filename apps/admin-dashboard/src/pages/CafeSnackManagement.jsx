@@ -21,15 +21,11 @@ export function CafeSnackManagement() {
     const [dupModal, setDupModal] = useState({ open: false, label: '', items: [], sourceBranchId: null });
 
     const fetchSnacks = useCallback(async () => {
+        if (!selectedBranch) return;
         setLoading(true);
         try {
-            const res = await api.get(selectedBranch ? `/studio/cafe-snacks?branchId=${selectedBranch.id}` : '/studio/cafe-snacks');
-            const data = res.data || [];
-            if (selectedBranch) {
-                setSnacks(data.filter(s => s.branchId === selectedBranch.id));
-            } else {
-                setSnacks(data);
-            }
+            const res = await api.get(`/studio/cafe-snacks?branch_id=${selectedBranch.id}`);
+            setSnacks(res.data || []);
         } catch (err) {
             console.error('Failed to load cafe snacks', err);
         } finally {
@@ -135,8 +131,8 @@ export function CafeSnackManagement() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Cafe & Snacks</h2>
-                    <p className="text-muted-foreground mt-1">
-                        {selectedBranch ? `Manage snacks for ${selectedBranch.name}` : 'Manage snacks across all branches'}
+                    <p className="text-muted-foreground mt-1 text-sm md:text-base">
+                        Manage snacks for {selectedBranch?.name}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -165,21 +161,6 @@ export function CafeSnackManagement() {
                                 <input type="number" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={formData.price} onChange={e => setFormData({...formData, price: Number(e.target.value)})} placeholder="0" />
                             </div>
                         </div>
-                        {!selectedBranch && (
-                            <div className="space-y-1.5 flex flex-col">
-                                <label className="text-sm font-medium">Branch</label>
-                                <select 
-                                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" 
-                                    value={formData.branchId || ''} 
-                                    onChange={e => setFormData({...formData, branchId: e.target.value ? Number(e.target.value) : null})}
-                                >
-                                    <option value="">Select Branch (Global if empty)</option>
-                                    {branches.map(b => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
                         <div className="flex gap-2 pt-2">
                             <Button onClick={handleSave} disabled={saving || !formData.label || !formData.price}>
                                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -209,7 +190,6 @@ export function CafeSnackManagement() {
                             <TableRow>
                                 <TableHead className="font-semibold">Name</TableHead>
                                 <TableHead className="font-semibold">Price</TableHead>
-                                {!selectedBranch && <TableHead className="font-semibold">Branch</TableHead>}
                                 <TableHead className="font-semibold">Status</TableHead>
                                 <TableHead className="text-right font-semibold">Actions</TableHead>
                             </TableRow>
@@ -219,11 +199,7 @@ export function CafeSnackManagement() {
                                 <TableRow key={snack.id} className="hover:bg-muted/50">
                                     <TableCell className="font-medium">{snack.label}</TableCell>
                                     <TableCell>Rp {Number(snack.price).toLocaleString('id-ID')}</TableCell>
-                                    {!selectedBranch && (
-                                        <TableCell>
-                                            {snack.branchId ? getBranchName(snack.branchId) : 'Global'}
-                                        </TableCell>
-                                    )}
+                                    <TableCell>Rp {Number(snack.price).toLocaleString('id-ID')}</TableCell>
                                     <TableCell>
                                         <Badge variant={snack.active !== false ? 'success' : 'secondary'}>{snack.active !== false ? 'Active' : 'Inactive'}</Badge>
                                     </TableCell>
@@ -236,7 +212,7 @@ export function CafeSnackManagement() {
                             ))}
                             {filtered.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={selectedBranch ? 4 : 5} className="text-center py-8 text-muted-foreground">No items found.</TableCell>
+                                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No items found.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

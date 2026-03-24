@@ -57,15 +57,6 @@ export function TopBar({ onToggleSidebar }) {
                         <>
                             <div className="fixed inset-0 z-40" onClick={() => setBranchOpen(false)} />
                             <div className="absolute right-0 mt-1 w-52 bg-card border rounded-lg shadow-xl z-50 py-1 animate-in fade-in slide-in-from-top-2 duration-150">
-                                <button
-                                    key="all"
-                                    onClick={() => handleBranchSelect(null)}
-                                    className={`w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors flex items-center gap-2 ${!selectedBranch ? 'text-primary font-semibold' : ''}`}
-                                >
-                                    <Building2 className="h-4 w-4" />
-                                    All Branches
-                                </button>
-                                <div className="border-t my-1" />
                                 {branches.map(branch => (
                                     <button
                                         key={branch.id}

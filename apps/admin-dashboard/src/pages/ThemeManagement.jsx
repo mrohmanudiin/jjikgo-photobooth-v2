@@ -22,11 +22,12 @@ export function ThemeManagement() {
     const [dupModal, setDupModal] = useState({ open: false, label: '', items: [], sourceBranchId: null });
 
     const fetchData = useCallback(async () => {
+        if (!selectedBranch) return;
         setLoading(true);
         try {
             const [themesRes, txRes] = await Promise.all([
-                api.get('/studio/themes'),
-                api.get(selectedBranch ? `/transactions?branch_id=${selectedBranch.id}` : '/transactions')
+                api.get(`/studio/themes?branch_id=${selectedBranch.id}`),
+                api.get(`/transactions?branch_id=${selectedBranch.id}`)
             ]);
 
             const allTxs = txRes.data;
@@ -34,11 +35,7 @@ export function ThemeManagement() {
             const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
             const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
 
-            // If selectedBranch is set, filter. Else show all.
             let rawThemes = themesRes.data;
-            if (selectedBranch) {
-                rawThemes = rawThemes.filter(t => t.branchId === selectedBranch.id || t.branch_id === selectedBranch.id);
-            }
 
             const themeData = rawThemes.map(theme => {
                 const txs = allTxs.filter(t => (t.themeId === theme.id || t.theme_id === theme.id) && t.status === 'done');
@@ -227,21 +224,6 @@ export function ThemeManagement() {
                                 <input type="number" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={formData.price} onChange={e => setFormData({...formData, price: Number(e.target.value)})} />
                             </div>
                         </div>
-                        {!selectedBranch && (
-                            <div className="space-y-1.5 flex flex-col">
-                                <label className="text-sm font-medium">Branch</label>
-                                <select 
-                                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" 
-                                    value={formData.branchId || ''} 
-                                    onChange={e => setFormData({...formData, branchId: e.target.value ? Number(e.target.value) : null})}
-                                >
-                                    <option value="">Select Branch (Global if empty)</option>
-                                    {branches.map(b => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
                         <div className="flex gap-2 pt-2">
                             <Button onClick={handleSave} disabled={saving || !formData.name}>
                                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -322,7 +304,6 @@ export function ThemeManagement() {
                         <TableHeader className="bg-muted/50">
                             <TableRow>
                                 <TableHead className="font-semibold">Theme Name</TableHead>
-                                {!selectedBranch && <TableHead className="font-semibold">Branch</TableHead>}
                                 <TableHead className="font-semibold">Settings</TableHead>
                                 <TableHead className="font-semibold">Total Sessions</TableHead>
                                 <TableHead className="font-semibold">Trend</TableHead>
@@ -337,11 +318,6 @@ export function ThemeManagement() {
                                         <MonitorPlay className="h-4 w-4 text-primary opacity-70" />
                                         {t.name}
                                     </TableCell>
-                                    {!selectedBranch && (
-                                        <TableCell>
-                                            {t.branchId || t.branch_id ? getBranchName(t.branchId || t.branch_id) : 'Global'}
-                                        </TableCell>
-                                    )}
                                     <TableCell>
                                         <div className="text-xs text-muted-foreground space-y-0.5">
                                             <div><span className="font-medium text-foreground">{t.maxPeople}</span> Max Pax</div>
@@ -376,7 +352,7 @@ export function ThemeManagement() {
                             ))}
                             {filteredThemes.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={selectedBranch ? 6 : 7} className="text-center py-6 text-muted-foreground">
+                                    <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                                         No themes matched the search.
                                     </TableCell>
                                 </TableRow>

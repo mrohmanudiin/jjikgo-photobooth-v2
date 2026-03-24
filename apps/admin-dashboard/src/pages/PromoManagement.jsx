@@ -21,15 +21,11 @@ export function PromoManagement() {
     const [dupModal, setDupModal] = useState({ open: false, label: '', items: [], sourceBranchId: null });
 
     const fetchPromos = useCallback(async () => {
+        if (!selectedBranch) return;
         setLoading(true);
         try {
-            const res = await api.get(selectedBranch ? `/studio/promos?branchId=${selectedBranch.id}` : '/studio/promos');
-            const data = res.data || [];
-            if (selectedBranch) {
-                setPromos(data.filter(p => p.branch_id === selectedBranch.id || p.branchId === selectedBranch.id));
-            } else {
-                setPromos(data);
-            }
+            const res = await api.get(`/studio/promos?branch_id=${selectedBranch.id}`);
+            setPromos(res.data || []);
         } catch (err) {
             console.error('Failed to load promos', err);
         } finally {
@@ -152,8 +148,8 @@ export function PromoManagement() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Promo Management</h2>
-                    <p className="text-muted-foreground mt-1">
-                        {selectedBranch ? `Manage discounts for ${selectedBranch.name}` : 'Manage discounts across all branches'}
+                    <p className="text-muted-foreground mt-1 text-sm md:text-base">
+                        Manage discounts for {selectedBranch?.name}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -192,21 +188,6 @@ export function PromoManagement() {
                                 </div>
                             )}
                         </div>
-                        {!selectedBranch && (
-                            <div className="space-y-1.5 flex flex-col">
-                                <label className="text-sm font-medium">Branch</label>
-                                <select 
-                                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" 
-                                    value={formData.branchId || ''} 
-                                    onChange={e => setFormData({...formData, branchId: e.target.value ? Number(e.target.value) : null})}
-                                >
-                                    <option value="">Select Branch (Global if empty)</option>
-                                    {branches.map(b => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
                         <div className="flex gap-2 pt-2">
                             <Button onClick={handleSave} disabled={saving || !formData.label}>
                                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -237,7 +218,6 @@ export function PromoManagement() {
                                 <TableHead className="font-semibold">Label</TableHead>
                                 <TableHead className="font-semibold">Type</TableHead>
                                 <TableHead className="font-semibold">Discount</TableHead>
-                                {!selectedBranch && <TableHead className="font-semibold">Branch</TableHead>}
                                 <TableHead className="font-semibold">Status</TableHead>
                                 <TableHead className="text-right font-semibold">Actions</TableHead>
                             </TableRow>
@@ -250,11 +230,6 @@ export function PromoManagement() {
                                         <Badge variant="outline">{typeLabel(promo.type)}</Badge>
                                     </TableCell>
                                     <TableCell className="font-medium">{discountDisplay(promo)}</TableCell>
-                                    {!selectedBranch && (
-                                        <TableCell>
-                                            {promo.branchId || promo.branch_id ? getBranchName(promo.branchId || promo.branch_id) : 'Global'}
-                                        </TableCell>
-                                    )}
                                     <TableCell>
                                         <Badge variant={promo.active !== false ? 'success' : 'secondary'}>{promo.active !== false ? 'Active' : 'Inactive'}</Badge>
                                     </TableCell>
@@ -266,7 +241,7 @@ export function PromoManagement() {
                                 </TableRow>
                             ))}
                             {filtered.length === 0 && (
-                                <TableRow><TableCell colSpan={selectedBranch ? 5 : 6} className="text-center py-8 text-muted-foreground">No promos found.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No promos found.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>

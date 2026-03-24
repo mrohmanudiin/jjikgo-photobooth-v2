@@ -11,16 +11,19 @@ const modelMap = {
   theme: themes,
 };
 
-/**
- * GET /api/studio/:model
- * Access: ADMIN
- */
 const getAll = (modelName) => async (req, res) => {
   try {
     const table = modelMap[modelName];
     if (!table) return res.status(400).json({ error: `Unknown model: ${modelName}` });
 
-    const items = await db.select().from(table);
+    // Use branchFilter from branchScope middleware
+    let query = db.select().from(table);
+    if (req.branchFilter !== undefined && req.branchFilter !== null) {
+      query = query.where(eq(table.branchId, req.branchFilter));
+    }
+    
+    // Sort by label/name if possible
+    const items = await query;
     res.json(items);
   } catch (error) {
     console.error(`getAll ${modelName} error:`, error);
@@ -28,16 +31,18 @@ const getAll = (modelName) => async (req, res) => {
   }
 };
 
-/**
- * POST /api/studio/:model
- * Access: ADMIN
- */
 const createItem = (modelName) => async (req, res) => {
   try {
     const table = modelMap[modelName];
     if (!table) return res.status(400).json({ error: `Unknown model: ${modelName}` });
 
-    const [item] = await db.insert(table).values(req.body).returning();
+    // Enforce branchId from req.branchFilter if provided as query param or from non-admin user
+    const payload = { ...req.body };
+    if (req.branchFilter && !payload.branchId) {
+      payload.branchId = req.branchFilter;
+    }
+
+    const [item] = await db.insert(table).values(payload).returning();
     res.status(201).json(item);
   } catch (error) {
     console.error(`createItem ${modelName} error:`, error);

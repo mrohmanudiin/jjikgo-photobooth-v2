@@ -5,7 +5,10 @@ const BranchContext = createContext(null);
 
 export function BranchProvider({ children }) {
   const [branches, setBranches] = useState([]);
-  const [selectedBranch, setSelectedBranch] = useState(null); // null = All Branches
+  const [selectedBranch, setSelectedBranch] = useState(() => {
+    const saved = localStorage.getItem('jjikgo-selected-branch');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,6 +19,16 @@ export function BranchProvider({ children }) {
     try {
       const { data } = await api.get('/branches');
       setBranches(data);
+      
+      // If no branch selected or selected branch doesn't exist anymore, pick first entry
+      if (data.length > 0) {
+        let current = selectedBranch;
+        if (!current || !data.find(b => b.id === current.id)) {
+          current = data[0];
+          setSelectedBranch(current);
+          localStorage.setItem('jjikgo-selected-branch', JSON.stringify(current));
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch branches', err);
     } finally {
@@ -24,9 +37,12 @@ export function BranchProvider({ children }) {
   };
 
   const selectBranch = (branchId) => {
-    // branchId = null means "All Branches"
-    const branch = branchId ? branches.find(b => b.id === branchId) : null;
-    setSelectedBranch(branch);
+    // Only allow selecting valid branches
+    const branch = branches.find(b => b.id === branchId);
+    if (branch) {
+      setSelectedBranch(branch);
+      localStorage.setItem('jjikgo-selected-branch', JSON.stringify(branch));
+    }
   };
 
   const value = React.useMemo(() => ({
