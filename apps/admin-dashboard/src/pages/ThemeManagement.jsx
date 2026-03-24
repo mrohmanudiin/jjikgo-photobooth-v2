@@ -88,7 +88,7 @@ export function ThemeManagement() {
                 maxCapacity: formData.maxPeople, 
                 price: formData.price, 
                 active: formData.active,
-                branchId: selectedBranch ? selectedBranch.id : formData.branchId
+                branchId: (selectedBranch && selectedBranch.id !== 'ALL') ? selectedBranch.id : (formData.branchId || null)
             };
             
             if (editingId) {
@@ -152,7 +152,7 @@ export function ThemeManagement() {
                     maxCapacity: theme.maxPeople,
                     price: theme.price,
                     active: theme.active !== false,
-                    branchId: branchId
+                    branchId: (branchId && branchId !== 'ALL') ? Number(branchId) : null
                 };
                 await api.post('/studio/themes', payload);
             }

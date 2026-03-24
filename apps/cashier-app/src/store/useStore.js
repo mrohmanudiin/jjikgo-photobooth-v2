@@ -99,8 +99,9 @@ export const useStore = create(
                     // We flatten it so both `order_status` and `status` work.
                     const normalized = raw.map(t => {
                         // Backend may return queue as nested or flatten at top level
-                        const queueStatus = t.queue?.status || t.queues?.[0]?.status || t.status || t.order_status || 'waiting';
-                        const queueNumber = t.queue?.queue_number ?? t.queue?.queueNumber ?? t.queue_number ?? t.queueNumber;
+                        // prioritize queue status over payment status
+                        const queueStatus = t.queues?.[0]?.status || t.queue?.status || t.status || 'waiting';
+                        const queueNumber = t.queues?.[0]?.queue_number || t.queue?.queue_number || t.queue_number;
                         return {
                             ...t,
                             // Normalize status fields

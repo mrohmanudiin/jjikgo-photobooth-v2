@@ -38,6 +38,8 @@ const createItem = (modelName) => async (req, res) => {
 
     // Enforce branchId from req.branchFilter if provided as query param or from non-admin user
     const payload = { ...req.body };
+    if (payload.branchId === 'ALL') payload.branchId = null;
+    
     if (req.branchFilter && !payload.branchId) {
       payload.branchId = req.branchFilter;
     }
@@ -59,9 +61,12 @@ const updateItem = (modelName) => async (req, res) => {
     const table = modelMap[modelName];
     if (!table) return res.status(400).json({ error: `Unknown model: ${modelName}` });
 
+    const payload = { ...req.body };
+    if (payload.branchId === 'ALL') payload.branchId = null;
+
     const { id } = req.params;
     const [item] = await db.update(table)
-      .set(req.body)
+      .set(payload)
       .where(eq(table.id, parseInt(id)))
       .returning();
 

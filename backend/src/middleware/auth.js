@@ -53,7 +53,8 @@ const branchScope = (req, res, next) => {
 
   if (req.user.role === 'admin') {
     // Admin can access everything; optionally filter by query param
-    req.branchFilter = req.query.branch_id ? parseInt(req.query.branch_id) : null;
+    const bId = req.query.branch_id || req.query.branchId;
+    req.branchFilter = bId ? parseInt(bId) : null;
   } else {
     // Non-admin users are scoped to their assigned branch
     if (!req.user.branchId) {

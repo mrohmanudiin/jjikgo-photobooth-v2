@@ -50,7 +50,7 @@ export function PackageManagement() {
                 description: formData.description,
                 active: formData.active,
                 slug: generateSlug(formData.label),
-                branchId: selectedBranch ? selectedBranch.id : formData.branchId
+                branchId: (selectedBranch && selectedBranch.id !== 'ALL') ? selectedBranch.id : (formData.branchId || null)
             };
 
             if (editingId) {
@@ -115,7 +115,7 @@ export function PackageManagement() {
                     description: pkg.description,
                     slug: generateSlug(newLabel) + '-' + Date.now().toString().slice(-4),
                     active: pkg.active !== false,
-                    branchId
+                    branchId: (branchId === 'ALL') ? null : branchId
                 };
                 await api.post('/studio/packages', payload);
             }
