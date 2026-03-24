@@ -134,7 +134,7 @@ export default function ShiftManagement() {
                                         <div style={{ color: '#FF3B30', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', marginBottom: 12 }}>Total Expenses</div>
                                         <div style={{ fontSize: 20, fontWeight: 800, color: '#FF3B30' }}>- {formatCurrency(currentShift.totalExpenses || currentShift.total_expenses || 0)}</div>
                                     </div>
-                                    <div className="card" style={{ padding: 24, border: '1px solid #E5E5EA', background: '#F0FFF4', border: '1px solid #34C75920' }}>
+                                    <div className="card" style={{ padding: 24, background: '#F0FFF4', border: '1px solid #34C75920' }}>
                                         <div style={{ color: '#34C759', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', marginBottom: 12 }}>Expected Cash</div>
                                         <div style={{ fontSize: 20, fontWeight: 800, color: '#34C759' }}>{formatCurrency((currentShift.startingCash || currentShift.starting_cash || 0) - (currentShift.totalExpenses || currentShift.total_expenses || 0))}</div>
                                     </div>
