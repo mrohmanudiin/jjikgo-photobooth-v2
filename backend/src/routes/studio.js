@@ -6,7 +6,7 @@ const { authenticate, requireRole, branchScope } = require('../middleware/auth')
 
 // Helper to create CRUD routes with admin-only access
 const createCrudRoutes = (path, model) => {
-    router.get(`/${path}`, authenticate, requireRole(['admin']), branchScope, masterDataController.getAll(model));
+    router.get(`/${path}`, authenticate, requireRole(['admin', 'cashier', 'staff']), branchScope, masterDataController.getAll(model));
     router.post(`/${path}`, authenticate, requireRole(['admin']), branchScope, masterDataController.createItem(model));
     router.put(`/${path}/:id`, authenticate, requireRole(['admin']), branchScope, masterDataController.updateItem(model));
     router.delete(`/${path}/:id`, authenticate, requireRole(['admin']), branchScope, masterDataController.deleteItem(model));
