@@ -44,7 +44,8 @@ export function DailyCash() {
                 if (!isAll) txParams.append('branch_id', selectedBranch.id);
                 txParams.append('shift_id', shiftRes.data.id);
                 const txRes = await api.get(`/transactions?${txParams.toString()}`);
-                setShiftTransactions(txRes.data.filter(t => t.status !== 'cancelled') || []);
+                const txs = Array.isArray(txRes.data) ? txRes.data : [];
+                setShiftTransactions(txs.filter(t => t.status !== 'cancelled'));
             } else {
                 setShiftTransactions([]);
             }
@@ -148,7 +149,10 @@ export function DailyCash() {
         let start = '--:--';
         try {
             if (rawStart) {
-                start = format(typeof rawStart === 'string' ? parseISO(rawStart) : rawStart, 'HH:mm');
+                const d = typeof rawStart === 'string' ? parseISO(rawStart) : new Date(rawStart);
+                if (!isNaN(d.getTime())) {
+                    start = format(d, 'HH:mm');
+                }
             }
         } catch(e) { /* fallback */ }
         

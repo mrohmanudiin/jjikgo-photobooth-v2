@@ -27,6 +27,7 @@ function getStatusColors(status) {
 
 // ─── Helper: normalize queue object (backend uses camelCase) ──────────────────
 function normalizeQueue(q) {
+    if (!q) return { status: 'unknown' };
     const pkg = q.transaction?.package || q.package || {};
     return {
         ...q,
@@ -569,10 +570,11 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
         return null;
     })();
 
-    const rawQueues = (queueData || {})[theme.name] || [];
-    const myQueues = rawQueues.map(normalizeQueue);
+    const themeName = theme?.name || 'Unknown Booth';
+    const rawQueues = (queueData && themeName) ? (queueData[themeName] || []) : [];
+    const myQueues = Array.isArray(rawQueues) ? rawQueues.map(normalizeQueue) : [];
     const activeQueue = myQueues.find(q => ['called', 'in_session'].includes(q.status?.toLowerCase())) || null;
-    const waitingQueues = myQueues.filter(q => q.status?.toLowerCase() === 'waiting');
+    const waitingQueues = myQueues.filter(q => q.status?.toLowerCase() === 'waiting' || !q.status);
     const doneToday = myQueues.filter(q => q.status?.toLowerCase() === 'done').length;
 
     const showToast = (msg) => {

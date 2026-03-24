@@ -21,6 +21,26 @@ import api from '../utils/api';
 import { useBranch } from '../contexts/BranchContext';
 import { format, subDays, startOfWeek, startOfMonth, parseISO, getHours } from 'date-fns';
 
+function getDateRange(range, customFrom, customTo) {
+    const now = new Date();
+    switch (range) {
+        case 'Today':
+            return { from: format(now, 'yyyy-MM-dd'), to: format(now, 'yyyy-MM-dd') };
+        case 'Yesterday':
+            return { from: format(subDays(now, 1), 'yyyy-MM-dd'), to: format(subDays(now, 1), 'yyyy-MM-dd') };
+        case '7 Days':
+            return { from: format(subDays(now, 7), 'yyyy-MM-dd'), to: format(now, 'yyyy-MM-dd') };
+        case '30 Days':
+            return { from: format(subDays(now, 30), 'yyyy-MM-dd'), to: format(now, 'yyyy-MM-dd') };
+        case 'This Month':
+            return { from: format(startOfMonth(now), 'yyyy-MM-dd'), to: format(now, 'yyyy-MM-dd') };
+        case 'Custom':
+            return { from: customFrom, to: customTo };
+        default:
+            return {};
+    }
+}
+
 function getComparisonRange(range, currentFrom, currentTo) {
     if (!currentFrom || !currentTo) return {};
     const from = parseISO(currentFrom);
@@ -121,14 +141,14 @@ export function FinanceDashboard() {
     const fetchTransactions = useCallback(async () => {
         setLoading(true);
         try {
-            const rangeObj = getDateRange(dateRange, null, null);
-            const compRange = getComparisonRange(dateRange, rangeObj.from, rangeObj.to);
+            const rangeObj = getDateRange(dateRange, null, null) || {};
+            const compRange = getComparisonRange(dateRange, rangeObj.from, rangeObj.to) || {};
 
             const buildParams = (r) => {
                 const p = new URLSearchParams();
                 if (selectedBranch && selectedBranch.id !== 'ALL') p.append('branch_id', selectedBranch.id);
-                if (r.from) p.append('date_from', r.from);
-                if (r.to) p.append('date_to', r.to);
+                if (r && r.from) p.append('date_from', r.from);
+                if (r && r.to) p.append('date_to', r.to);
                 return p.toString();
             };
 
@@ -137,10 +157,15 @@ export function FinanceDashboard() {
                 api.get(`/transactions?${buildParams(compRange)}`)
             ]);
 
-            setTransactions(currentRes.data.filter(t => t.status !== 'cancelled'));
-            setComparisonTransactions(prevRes.data.filter(t => t.status !== 'cancelled'));
+            const currentArr = Array.isArray(currentRes.data) ? currentRes.data : [];
+            const prevArr = Array.isArray(prevRes.data) ? prevRes.data : [];
+
+            setTransactions(currentArr.filter(t => t.status !== 'cancelled'));
+            setComparisonTransactions(prevArr.filter(t => t.status !== 'cancelled'));
         } catch (err) {
-            console.error(err);
+            console.error('Failed to fetch finance data', err);
+            setTransactions([]);
+            setComparisonTransactions([]);
         } finally {
             setLoading(false);
         }
