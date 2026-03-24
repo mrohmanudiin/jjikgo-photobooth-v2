@@ -210,7 +210,7 @@ export default function ProductionQueue() {
             {/* Kanban Pipeline */}
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${ORDER_STATUSES.length}, 1fr)`, gap: 8 }}>
                 {ORDER_STATUSES.map((s) => {
-                    const c = STATUS_COLORS[s];
+                    const c = STATUS_COLORS[s] || { bg: '#F5F5F7', border: '#E5E5EA', text: '#8E8E93', icon: '❓' };
                     const count = counts[s] || 0;
                     const isActive = statusFilter === s;
                     return (
@@ -260,13 +260,13 @@ export default function ProductionQueue() {
                             style={{ fontSize: 11, padding: '5px 12px', height: 30, borderRadius: 8 }}
                             onClick={() => setStatusFilter(s)}
                         >
-                            {STATUS_COLORS[s].icon} {getStatusLabel(s)} ({counts[s] || 0})
+                            {(STATUS_COLORS[s] || {}).icon || '❓'} {getStatusLabel(s)} ({counts[s] || 0})
                         </button>
                     ))}
                 </div>
 
                 {/* Theme */}
-                {themes.length > 0 && (
+                {Array.isArray(themes) && themes.length > 0 && (
                     <div style={{
                         display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap',
                         background: '#F5F5F5', padding: '6px 8px', borderRadius: 10
@@ -296,7 +296,7 @@ export default function ProductionQueue() {
 
             {/* Queue Cards */}
             <div className="card" style={{ padding: 0 }}>
-                {filtered.length === 0 ? (
+                {(filtered || []).length === 0 ? (
                     <div style={{
                         padding: '60px 24px',
                         display: 'flex', flexDirection: 'column',
@@ -328,7 +328,9 @@ export default function ProductionQueue() {
                         gap: 0,
                     }}>
                         {filtered.map((tx, idx) => {
-                            const sc = STATUS_COLORS[tx.order_status] || STATUS_COLORS.waiting;
+                            if (!tx) return null;
+                            const status = tx.order_status?.toLowerCase() || 'waiting';
+                            const sc = STATUS_COLORS[status] || STATUS_COLORS.waiting;
                             return (
                                 <div key={tx.id || `${tx.order_id}-${idx}`} style={{
                                     padding: 24, display: 'flex', flexDirection: 'column', gap: 16,
@@ -342,8 +344,8 @@ export default function ProductionQueue() {
                                             <div style={{ fontSize: 12, color: '#8E8E93', fontWeight: 600, textTransform: 'uppercase' }}>Queue</div>
                                             <div style={{ fontSize: 32, fontWeight: 900, color: '#111', letterSpacing: '-0.02em', lineHeight: 1 }}>{tx.queue_number}</div>
                                         </div>
-                                        <span className={`badge ${getStatusBadgeClass(tx.order_status)}`} style={{ fontSize: 13, padding: '6px 12px', fontWeight: 800 }}>
-                                            {sc.icon} {getStatusLabel(tx.order_status)}
+                                        <span className={`badge ${getStatusBadgeClass(status)}`} style={{ fontSize: 13, padding: '6px 12px', fontWeight: 800 }}>
+                                            {sc.icon} {getStatusLabel(status)}
                                         </span>
                                     </div>
 

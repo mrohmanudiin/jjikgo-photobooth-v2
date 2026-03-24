@@ -59,7 +59,8 @@ export function Dashboard() {
       const startStr = yearStartStr < compareStart ? yearStartStr : compareStart;
       
       const todayStr = format(today, 'yyyy-MM-dd');
-      const monthStartStr = format(new Date(today.getFullYear(), today.getMonth(), 1), 'yyyy-MM-dd');
+      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const monthStartStr = format(monthStart, 'yyyy-MM-dd');
       const from30 = format(subDays(today, 30), 'yyyy-MM-dd');
 
       if (selectedBranch && selectedBranch.id !== 'ALL') {
@@ -87,22 +88,40 @@ export function Dashboard() {
       let rev30d = 0;
       
       txList.forEach(t => {
-        const txDate = format(new Date(t.created_at), 'yyyy-MM-dd');
-        const val = Number(t.total) || 0;
-        if (txDate >= yearStartStr) yearRev += val;
-        if (txDate >= monthStartStr) monthRev += val;
-        if (txDate >= from30) rev30d += val;
-        if (txDate === todayStr) todayRev += val;
+        if (!t?.created_at) return;
+        try {
+          const d = new Date(t.created_at);
+          if (isNaN(d.getTime())) return;
+          const txDate = format(d, 'yyyy-MM-dd');
+          const val = Number(t.total) || 0;
+          if (txDate >= yearStartStr) yearRev += val;
+          if (txDate >= monthStartStr) monthRev += val;
+          if (txDate >= from30) rev30d += val;
+          if (txDate === todayStr) todayRev += val;
+        } catch (e) {}
       });
 
       setStats({
-        totalToday: txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === todayStr).length,
-        totalAllTime: txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') >= yearStartStr).length,
+        totalToday: txList.filter(t => {
+          try {
+            return t?.created_at && format(new Date(t.created_at), 'yyyy-MM-dd') === todayStr;
+          } catch(e) { return false; }
+        }).length,
+        totalAllTime: txList.filter(t => {
+          try {
+            return t?.created_at && format(new Date(t.created_at), 'yyyy-MM-dd') >= yearStartStr;
+          } catch(e) { return false; }
+        }).length,
         revenue30d: rev30d,
         todayRevenue: todayRev,
         monthlyRevenue: monthRev,
         yearlyRevenue: yearRev,
-        waiting: txList.filter(t => t.status === 'waiting' && format(new Date(t.created_at), 'yyyy-MM-dd') === todayStr).length,
+        waiting: txList.filter(t => {
+          try {
+            return (t?.status === 'waiting' || t?.order_status === 'waiting') && 
+                   t?.created_at && format(new Date(t.created_at), 'yyyy-MM-dd') === todayStr;
+          } catch(e) { return false; }
+        }).length,
       });
 
       // Build chart data
@@ -110,21 +129,29 @@ export function Dashboard() {
       const mainChart = Array.from({ length: daysCount }, (_, i) => {
         const day = subDays(today, (daysCount - 1) - i);
         const key = format(day, 'yyyy-MM-dd');
-        const dayTx = txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === key);
+        const dayTx = txList.filter(t => {
+          try {
+            return t?.created_at && format(new Date(t.created_at), 'yyyy-MM-dd') === key;
+          } catch(e) { return false; }
+        });
         
         const item = {
           day: daysCount === 7 ? format(day, 'EEE') : format(day, 'dd/MM'),
           date: key,
           transactions: dayTx.length,
-          revenue: dayTx.reduce((s, t) => s + (Number(t.total) || 0), 0),
+          revenue: dayTx.reduce((s, t) => s + (Number(t?.total) || 0), 0),
         };
 
         if (compareMode) {
           const prevDay = subDays(day, daysCount);
           const prevKey = format(prevDay, 'yyyy-MM-dd');
-          const prevDayTx = txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === prevKey);
+          const prevDayTx = txList.filter(t => {
+            try {
+              return t?.created_at && format(new Date(t.created_at), 'yyyy-MM-dd') === prevKey;
+            } catch(e) { return false; }
+          });
           item.prevTransactions = prevDayTx.length;
-          item.prevRevenue = prevDayTx.reduce((s, t) => s + (Number(t.total) || 0), 0);
+          item.prevRevenue = prevDayTx.reduce((s, t) => s + (Number(t?.total) || 0), 0);
         }
 
         return item;
@@ -133,7 +160,11 @@ export function Dashboard() {
 
       // Top Packages
       const packageStart = topPackagesRange === 'daily' ? todayStr : format(subDays(today, 7), 'yyyy-MM-dd');
-      const packageTxs = txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') >= packageStart);
+      const packageTxs = txList.filter(t => {
+        try {
+          return t?.created_at && format(new Date(t.created_at), 'yyyy-MM-dd') >= packageStart;
+        } catch(e) { return false; }
+      });
       const pkgMap = {};
       packageTxs.forEach(t => {
         const pkg = t.package || 'Cafe/Other';
@@ -144,13 +175,20 @@ export function Dashboard() {
       const sortedPkgs = Object.values(pkgMap).sort((a, b) => b.count - a.count).slice(0, 5);
       setTopPackages(sortedPkgs);
 
-      setRecentTx(txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === todayStr).slice(0, 10));
+      setRecentTx(txList.filter(t => {
+        try {
+          if (!t?.created_at) return false;
+          const d = new Date(t.created_at);
+          if (isNaN(d.getTime())) return false;
+          return format(d, 'yyyy-MM-dd') === todayStr;
+        } catch (e) { return false; }
+      }).slice(0, 10));
     } catch (err) {
-      console.error(err);
+      console.error("Dashboard error:", err);
     } finally {
       setLoading(false);
     }
-  }, [selectedBranch, chartRange, compareMode, topPackagesRange]);
+  }, [selectedBranch, chartRange, compareMode, topPackagesRange, yearStartStr, monthStartStr, from30, todayStr]);
 
   useEffect(() => {
     fetchData();

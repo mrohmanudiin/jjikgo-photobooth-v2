@@ -39,13 +39,21 @@ export function DailyCash() {
             setCurrentShift(shiftRes.data || null);
             setPreviousShifts(historyRes.data || []);
 
-            if (shiftRes.data?.id) {
+            if (shiftRes.data) {
                 const txParams = new URLSearchParams();
-                if (!isAll) txParams.append('branch_id', selectedBranch.id);
-                txParams.append('shift_id', shiftRes.data.id);
+                if (!isAll) {
+                    txParams.append('branch_id', selectedBranch.id);
+                    if (shiftRes.data.id) txParams.append('shift_id', shiftRes.data.id);
+                } else if (Array.isArray(shiftRes.data)) {
+                    // For multiple branches, we might want all transactions for these specific shifts
+                    // or just all active transactions today.
+                    // For now, let's fetch all transactions for the selected date range and filter if needed.
+                    // If no shift_id, getAllTransactions returns all (scoped by branchFilter if any)
+                }
+                
                 const txRes = await api.get(`/transactions?${txParams.toString()}`);
                 const txs = Array.isArray(txRes.data) ? txRes.data : [];
-                setShiftTransactions(txs.filter(t => t.status !== 'cancelled'));
+                setShiftTransactions(txs.filter(t => t && t.status !== 'cancelled'));
             } else {
                 setShiftTransactions([]);
             }
@@ -332,14 +340,32 @@ export function DailyCash() {
                                                 <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                                             </div>
                                             <div>
-                                                <p className="font-semibold text-sm">{format(parseISO(shift.start_time), 'MMM dd, yyyy')}</p>
-                                                <p className="text-xs text-muted-foreground">{shift.user?.full_name || 'Cashier'} • {format(parseISO(shift.start_time), 'HH:mm')} - {shift.end_time ? format(parseISO(shift.end_time), 'HH:mm') : 'Closed'}</p>
+                                                <p className="font-semibold text-sm">
+                                                    {(() => {
+                                                        try {
+                                                            const d = parseISO(shift.start_time || shift.startTime);
+                                                            return isNaN(d.getTime()) ? 'Invalid Date' : format(d, 'MMM dd, yyyy');
+                                                        } catch(e) { return 'Invalid Date'; }
+                                                    })()}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {shift.user?.full_name || shift.user?.fullName || 'Cashier'} • {(() => {
+                                                        try {
+                                                            const d = parseISO(shift.start_time || shift.startTime);
+                                                            return isNaN(d.getTime()) ? '--:--' : format(d, 'HH:mm');
+                                                        } catch(e) { return '--:--'; }
+                                                    })()} - {(() => {
+                                                        try {
+                                                            if (!shift.end_time && !shift.endTime) return 'Closed';
+                                                            const d = parseISO(shift.end_time || shift.endTime);
+                                                            return isNaN(d.getTime()) ? '??:??' : format(d, 'HH:mm');
+                                                        } catch(e) { return '??:??'; }
+                                                    })()}
+                                                </p>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="font-bold text-sm">Ended cDrawer: Rp {endCash.toLocaleString('id-ID')}</p>
-                                            {/* Note: Discrepancy computation logic requires `totalCashSales` saved on shift end, which does not exist in db. 
-                                            We just show Ending Cash here. */}
+                                            <p className="font-bold text-sm">Ended Drawer: Rp {(Number(shift.ending_cash || shift.endingCash) || 0).toLocaleString('id-ID')}</p>
                                         </div>
                                     </div>
                                 );

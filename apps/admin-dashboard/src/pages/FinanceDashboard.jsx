@@ -200,36 +200,58 @@ export function FinanceDashboard() {
         const peakMap = Array.from({ length: 14 }).map((_, i) => ({ time: `${i + 9}:00`, count: 0 }));
 
         txList.forEach(t => {
+            if (!t) return;
             const total = Number(t.total_price || t.totalPrice || t.total) || 0;
             revenue += total;
 
             // Payment Method
-            let pm = (t.payment_method || t.paymentMethod || 'cash').toLowerCase();
+            const rawPm = t.payment_method || t.paymentMethod || 'cash';
+            let pm = String(rawPm).toLowerCase();
             if (pm.includes('qris')) methods.qris += total;
             else if (pm.includes('edc') || pm.includes('card')) methods.edc += total;
             else if (pm.includes('transfer')) methods.transfer += total;
             else methods.cash += total;
 
             // Peak Hours
-            const hour = getHours(parseISO(t.created_at));
-            if (hour >= 9 && hour <= 22) peakMap[hour - 9].count += 1;
+            try {
+                const dateStr = t.created_at || t.createdAt;
+                if (dateStr) {
+                    const dt = typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr);
+                    if (!isNaN(dt.getTime())) {
+                        const hour = getHours(dt);
+                        if (hour >= 9 && hour <= 22) {
+                            if (peakMap[hour - 9]) peakMap[hour - 9].count += 1;
+                        }
+                    }
+                }
+            } catch (e) { /* ignore single error */ }
 
             // Breakdown (Strict Separation)
             let componentSnack = 0;
             let componentAddon = 0;
 
-            const snacksArr = Array.isArray(t.cafe_snacks) ? t.cafe_snacks : (typeof t.cafe_snacks === 'string' ? JSON.parse(t.cafe_snacks) : []);
+            const parseArr = (val) => {
+                if (Array.isArray(val)) return val;
+                if (typeof val === 'string' && val.trim()) {
+                    try { return JSON.parse(val); } catch (e) { return []; }
+                }
+                return [];
+            };
+
+            const snacksArr = parseArr(t.cafe_snacks || t.cafeSnacks);
             snacksArr.forEach(s => {
                 const sRev = (Number(s.price) || 0) * (Number(s.quantity) || 1);
                 componentSnack += sRev;
-                items.snacks[s.name || s.label] = (items.snacks[s.name || s.label] || 0) + sRev;
+                const sName = s.name || s.label || 'Unknown';
+                items.snacks[sName] = (items.snacks[sName] || 0) + sRev;
             });
 
-            const addonsArr = Array.isArray(t.addons) ? t.addons : (typeof t.addons === 'string' ? JSON.parse(t.addons) : []);
+            const addonsArr = parseArr(t.addons);
             addonsArr.forEach(a => {
                 const aRev = (Number(a.price) || 0) * (Number(a.quantity) || 1);
                 componentAddon += aRev;
-                items.addons[a.name || a.label] = (items.addons[a.name || a.label] || 0) + aRev;
+                const aName = a.name || a.label || 'Unknown';
+                items.addons[aName] = (items.addons[aName] || 0) + aRev;
             });
 
             // Theme & Package get the remainder (base photoshoot price)
@@ -282,13 +304,24 @@ export function FinanceDashboard() {
         const csRev = Object.entries(items.snacks).map(([name, revenue]) => ({ name, revenue })).sort((a,b) => b.revenue - a.revenue).slice(0, 5);
         const aRev = Object.entries(items.addons).map(([name, revenue]) => ({ name, revenue })).sort((a,b) => b.revenue - a.revenue).slice(0, 5);
 
-        const rLarge = [...transactions].sort((a, b) => (Number(b.total_price || b.total) || 0) - (Number(a.total_price || a.total) || 0)).slice(0, 5).map(t => ({
-            id: t.invoice_number,
-            amount: Number(t.total_price || t.total) || 0,
-            method: t.payment_method || 'Cash',
-            time: format(parseISO(t.created_at), 'HH:mm'),
-            cust: `${t.customer_name || 'Walk-in'} (${t.people_count || 1} pax)`
-        }));
+        const rLarge = [...transactions].sort((a, b) => (Number(b.total_price || b.total) || 0) - (Number(a.total_price || a.total) || 0)).slice(0, 5).map(t => {
+            let labelTime = '--:--';
+            try {
+                const rawTime = t.created_at || t.createdAt;
+                if (rawTime) {
+                    const dt = typeof rawTime === 'string' ? parseISO(rawTime) : new Date(rawTime);
+                    if (!isNaN(dt.getTime())) labelTime = format(dt, 'HH:mm');
+                }
+            } catch(e) {}
+
+            return {
+                id: t.invoice_number || t.invoiceNumber || 'TX-???',
+                amount: Number(t.total_price || t.total) || 0,
+                method: t.payment_method || t.paymentMethod || 'Cash',
+                time: labelTime,
+                cust: `${t.customer_name || t.customerName || 'Walk-in'} (${t.people_count || t.peopleCount || 1} pax)`
+            };
+        });
 
         const bestSellers = [
             ...tRev.map(r => ({ name: r.name, category: 'Theme', revenue: r.revenue })),

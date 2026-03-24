@@ -780,13 +780,13 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
                                 <>
                                     <Icons.Bell size={18} />
                                     Call Next Customer
-                                    {waitingCount > 0 && (
+                                    {waitingQueues.length > 0 && (
                                         <span style={{
                                             background: 'rgba(0,0,0,0.2)',
                                             borderRadius: 20, padding: '2px 8px',
                                             fontSize: 12, fontWeight: 700, marginLeft: 4,
                                         }}>
-                                            {waitingCount}
+                                            {waitingQueues.length}
                                         </span>
                                     )}
                                 </>

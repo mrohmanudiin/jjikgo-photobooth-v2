@@ -163,7 +163,14 @@ export function QueueMonitor() {
                                         <TableCell>{item.transaction?.people_count || 1}</TableCell>
                                         <TableCell>{getStatusBadge(item.status)}</TableCell>
                                         <TableCell className="text-right text-muted-foreground text-sm">
-                                            {item.created_at ? format(new Date(item.created_at), 'HH:mm') : '-'}
+                                            {(() => {
+                                                if (!item.created_at) return '-';
+                                                try {
+                                                    const d = new Date(item.created_at);
+                                                    if (isNaN(d.getTime())) return '??:??';
+                                                    return format(d, 'HH:mm');
+                                                } catch(e) { return '??:??'; }
+                                            })()}
                                         </TableCell>
                                     </TableRow>
                                 ))}

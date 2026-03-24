@@ -69,8 +69,8 @@ export default function BoothSelection({ themes, queueData, onSelect, onLogout }
         <div className="booth-grid">
           {themes.map((theme, idx) => {
             const accent = ACCENT_COLORS[idx % ACCENT_COLORS.length];
-            const myQueues = queueData[theme.name] || [];
-            const waitingCount = myQueues.filter(q => q.status?.toLowerCase() === 'waiting').length;
+            const myQueues = (queueData && theme && theme.name) ? (queueData[theme.name] || []) : [];
+            const waitingCount = Array.isArray(myQueues) ? myQueues.filter(q => q && q.status?.toLowerCase() === 'waiting').length : 0;
 
             return (
               <button
