@@ -16,10 +16,15 @@ const getAll = (modelName) => async (req, res) => {
     const table = modelMap[modelName];
     if (!table) return res.status(400).json({ error: `Unknown model: ${modelName}` });
 
-    // Use branchFilter from branchScope middleware
+    const { or, isNull } = require('drizzle-orm');
     let query = db.select().from(table);
     if (req.branchFilter !== undefined && req.branchFilter !== null) {
-      query = query.where(eq(table.branchId, req.branchFilter));
+      query = query.where(
+        or(
+          eq(table.branchId, req.branchFilter),
+          isNull(table.branchId)
+        )
+      );
     }
     
     // Sort by label/name if possible
